@@ -834,6 +834,11 @@ body{font-feature-settings:'cv11','ss01';letter-spacing:-0.006em}
       Bundeskunden
       <template x-if="bk.filter(b=>b.enthus_priority===1).length>0"><span class="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold" x-text="bk.filter(b=>b.enthus_priority===1).length"></span></template>
     </button>
+    <button @click="rvTab='account-plan'" class="flex items-center gap-1.5 text-xs px-4 py-1.5 rounded-lg font-semibold transition" :class="rvTab==='account-plan'?'bg-white text-gray-800 shadow-sm':'text-gray-500 hover:text-gray-700'">
+      <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      Account-Plan
+      <template x-if="accountPlanData.filter(a=>a.new_tenders&&a.new_tenders.length>0).length>0"><span class="bg-amber-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold" x-text="accountPlanData.reduce((s,a)=>(a.new_tenders||[]).length+s,0)"></span></template>
+    </button>
   </div>
 
   <!-- ── TAB: VERTRÄGE ── -->
@@ -862,7 +867,13 @@ body{font-feature-settings:'cv11','ss01';letter-spacing:-0.006em}
         <input type="checkbox" x-model="rvFilter.relevant_only" class="w-4 h-4 rounded text-indigo-600">
         Nur enthus-relevant
       </label>
-      <span class="text-xs text-gray-400 ml-auto" x-text="rvFiltered.length+' Verträge'"></span>
+      <div class="flex gap-2 ml-auto mr-2 flex-wrap justify-end">
+        <button @click="rvFilter.auslauf=''" class="text-xs px-2.5 py-1 rounded-full border font-semibold transition" :class="!rvFilter.auslauf?'border-indigo-400 bg-indigo-50 text-indigo-700':'border-gray-200 text-gray-500 hover:bg-gray-50'">Alle</button>
+        <button @click="rvFilter.auslauf='rot'" class="text-xs px-2.5 py-1 rounded-full border font-semibold transition" :class="rvFilter.auslauf==='rot'?'border-red-400 bg-red-50 text-red-700':'border-gray-200 text-gray-500 hover:bg-gray-50'">🔴 <6Mo</button>
+        <button @click="rvFilter.auslauf='gelb'" class="text-xs px-2.5 py-1 rounded-full border font-semibold transition" :class="rvFilter.auslauf==='gelb'?'border-amber-400 bg-amber-50 text-amber-700':'border-gray-200 text-gray-500 hover:bg-gray-50'">🟡 6-12Mo</button>
+        <button @click="rvFilter.auslauf='gruen'" class="text-xs px-2.5 py-1 rounded-full border font-semibold transition" :class="rvFilter.auslauf==='gruen'?'border-emerald-400 bg-emerald-50 text-emerald-700':'border-gray-200 text-gray-500 hover:bg-gray-50'">🟢 >12Mo</button>
+      </div>
+      <span class="text-xs text-gray-400" x-text="rvFiltered.length+' Verträge'"></span>
     </div>
 
     <!-- Leere Liste -->
@@ -893,6 +904,13 @@ body{font-feature-settings:'cv11','ss01';letter-spacing:-0.006em}
             <div class="text-right flex-shrink-0 hidden sm:block">
               <div class="text-xs font-semibold" :class="rvEndeClass(rv.laufzeit_ende)" x-text="(rv.laufzeit_start||'?')+' – '+(rv.laufzeit_ende||'?')"></div>
               <div class="text-xs text-gray-400 mt-0.5" x-text="rv.volumen_mio?(rv.volumen_mio+' Mio. €'):(rv.volumen_raw||'—')"></div>
+            </div>
+            <div class="text-right flex-shrink-0 hidden md:block pl-4">
+              <div class="flex items-center gap-1.5 justify-end mb-0.5">
+                <div class="w-2.5 h-2.5 rounded-full" :class="getRVAuslaufClass(rv)"></div>
+                <span class="text-xs font-semibold" :class="getRVAuslaufTextClass(rv)" x-text="getRVAuslaufText(rv)"></span>
+              </div>
+              <div class="text-xs text-gray-400" x-text="'bis '+rv.laufzeit_ende"></div>
             </div>
             <svg class="w-4 h-4 text-gray-300 flex-shrink-0 mt-0.5 transition-transform" :class="rvDetail===rv.id?'rotate-180':''" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </div>
@@ -990,12 +1008,22 @@ body{font-feature-settings:'cv11','ss01';letter-spacing:-0.006em}
         </div>
         <div class="flex-1">
           <h4 class="text-sm font-bold text-gray-900">Proaktive Ausschreibungssuche</h4>
-          <p class="text-xs text-gray-500 mt-0.5 mb-3">Sucht auf TED.europa.eu nach neuen IT-Ausschreibungen in den Bundesländern, in denen eure Ziel-Organisationen aktiv sind — gefiltert nach euren CPV-Codes.</p>
+          <p class="text-xs text-gray-500 mt-0.5 mb-3">Sucht auf TED.europa.eu nach neuen IT-Ausschreibungen in den Bundesländern, in denen eure Ziel-Organisationen aktiv sind. Bereits abgelaufene (vergebene) Ausschreibungen werden ausgeblendet.</p>
           <div class="flex flex-wrap gap-2 mb-3">
             <template x-for="bl in rvBundeslaender" :key="bl">
               <span class="text-xs px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 font-medium" x-text="bl"></span>
             </template>
             <template x-if="rvBundeslaender.length===0"><span class="text-xs text-gray-400">Keine Bundesländer gefunden — erst Verträge laden</span></template>
+          </div>
+          <div class="flex flex-wrap items-center gap-4 mb-3">
+            <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
+              <input type="checkbox" x-model="radarBroadIT" class="w-3.5 h-3.5 rounded text-indigo-600">
+              <span><b>Alle IT-Ausschreibungen</b> (breit scannen — egal welche IT-Sache)</span>
+            </label>
+            <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
+              <input type="checkbox" x-model="radarHideExpired" class="w-3.5 h-3.5 rounded text-indigo-600">
+              <span>Abgelaufene ausblenden</span>
+            </label>
           </div>
           <button @click="scanBundeslandRadar()" :disabled="rvBundeslandRadarLoading||rv.length===0" class="flex items-center gap-2 text-sm px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 disabled:opacity-50 transition">
             <svg x-show="rvBundeslandRadarLoading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
@@ -1017,6 +1045,13 @@ body{font-feature-settings:'cv11','ss01';letter-spacing:-0.006em}
     <!-- Ergebnisse: nach Bundesland gruppiert -->
     <template x-if="rvBundeslandRadar.length>0">
       <div class="space-y-5">
+        <template x-if="radarHideExpired && rvRadarExpiredCount>0">
+          <div class="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5">
+            <svg class="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.7" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>
+            <span><b x-text="rvRadarExpiredCount"></b> bereits abgelaufene (vergebene) Ausschreibungen ausgeblendet.</span>
+            <button @click="radarHideExpired=false" class="ml-auto text-indigo-600 hover:underline font-medium flex-shrink-0">Trotzdem anzeigen</button>
+          </div>
+        </template>
         <template x-for="grp in rvRadarGrouped" :key="grp.land">
           <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div class="px-5 py-3 bg-slate-50 border-b border-gray-100 flex items-center justify-between">
@@ -1044,7 +1079,10 @@ body{font-feature-settings:'cv11','ss01';letter-spacing:-0.006em}
                     </div>
                   </div>
                   <div class="flex items-center gap-3 mt-2">
-                    <template x-if="t.url"><a :href="t.url" target="_blank" class="text-xs text-indigo-600 hover:underline font-medium">TED öffnen →</a></template>
+                    <a :href="tenderUrl(t)" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline font-semibold">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
+                      <span x-text="tenderHasDirectUrl(t)?'Zur Ausschreibung':'Auf TED suchen'"></span>
+                    </a>
                     <button @click="radarToBid(t)" class="text-xs text-gray-500 hover:text-indigo-600 font-medium transition">+ Als Bid erfassen</button>
                   </div>
                 </div>
@@ -1204,6 +1242,150 @@ body{font-feature-settings:'cv11','ss01';letter-spacing:-0.006em}
         <template x-if="f.bidId"><span class="text-xs text-indigo-500 font-semibold flex-shrink-0">→ öffnen</span></template>
       </div>
     </template>
+  </div>
+
+  <!-- ── TAB: ACCOUNT-PLAN ── -->
+  <div x-show="rvTab==='account-plan'">
+    <!-- KPI -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+      <div class="bg-indigo-50 rounded-2xl p-4 border border-indigo-100"><div class="text-2xl font-bold text-indigo-600 kpi-num" x-text="accountPlanData.length"></div><div class="text-xs text-indigo-400 mt-0.5">Bundeskunden</div></div>
+      <div class="bg-emerald-50 rounded-2xl p-4 border border-emerald-100"><div class="text-2xl font-bold text-emerald-600 kpi-num" x-text="accountPlanData.filter(a=>a.wins&&a.wins.length>0).length"></div><div class="text-xs text-emerald-400 mt-0.5">Mit Wins</div></div>
+      <div class="bg-amber-50 rounded-2xl p-4 border border-amber-100"><div class="text-2xl font-bold text-amber-600 kpi-num" x-text="accountPlanData.reduce((s,a)=>(a.new_tenders||[]).length+s,0)"></div><div class="text-xs text-amber-400 mt-0.5">Neue Ausschreibungen</div></div>
+      <div class="bg-purple-50 rounded-2xl p-4 border border-purple-100"><div class="text-2xl font-bold text-purple-600 kpi-num" x-text="accountPlanData.reduce((s,a)=>(a.active_rv||[]).length+s,0)"></div><div class="text-xs text-purple-400 mt-0.5">Aktive RVs</div></div>
+    </div>
+
+    <!-- Filter -->
+    <div class="bg-white border border-gray-100 rounded-2xl p-4 mb-4 shadow-sm flex flex-wrap gap-3 items-center">
+      <input x-model="accountPlanFilter.search" placeholder="Suche: Name, Kürzel…" class="flex-1 min-w-[160px] border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      <select x-model="accountPlanFilter.bundesland" class="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <option value="">Alle Bundesländer</option>
+        <template x-for="bl in bkBundeslaender" :key="bl"><option :value="bl" x-text="bl"></option></template>
+      </select>
+      <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
+        <input type="checkbox" x-model="accountPlanFilter.only_with_wins" class="w-3.5 h-3.5 rounded text-emerald-600">
+        Nur Wins
+      </label>
+      <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
+        <input type="checkbox" x-model="accountPlanFilter.only_new_tenders" class="w-3.5 h-3.5 rounded text-amber-600">
+        Mit neuen Ausschreibungen
+      </label>
+      <button @click="loadAccountPlan()" :disabled="accountPlanLoading" class="ml-auto text-xs px-3 py-1.5 border border-gray-200 rounded-xl text-gray-500 hover:bg-gray-50 disabled:opacity-50" x-text="accountPlanLoading?'Scannt…':'↻'"></button>
+    </div>
+
+    <!-- Account-Karten -->
+    <template x-if="accountPlanFiltered.length===0">
+      <div class="bg-white rounded-2xl border border-gray-100 p-12 text-center shadow-sm">
+        <div class="text-4xl mb-3">📊</div>
+        <p class="text-sm font-semibold text-gray-600">Keine Bundeskunden mit Daten</p>
+        <p class="text-xs text-gray-400 mt-1">Erst RVs und Bids laden, dann Account-Plan aktualisieren</p>
+      </div>
+    </template>
+
+    <div class="space-y-4">
+      <template x-for="account in accountPlanFiltered" :key="account.id">
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <!-- Header -->
+          <div class="px-5 py-4 bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-gray-100 flex items-center justify-between">
+            <div class="flex-1">
+              <div class="flex items-center gap-3 mb-1">
+                <div class="w-2 h-2 rounded-full" :class="{1:'bg-red-500',2:'bg-amber-400',3:'bg-gray-300'}[account.enthus_priority||3]"></div>
+                <span class="text-sm font-bold text-gray-900" x-text="account.name"></span>
+                <template x-if="account.kuerzel"><span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-mono" x-text="account.kuerzel"></span></template>
+                <template x-if="account.hpe_9991"><span class="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-bold">HPE</span></template>
+              </div>
+              <div class="text-xs text-gray-500" x-text="(account.bundesland||'—')"></div>
+            </div>
+            <div class="flex items-center gap-6 ml-4">
+              <div class="text-right">
+                <div class="text-lg font-bold text-emerald-600" x-text="(account.wins||[]).length"></div>
+                <div class="text-xs text-gray-400">Wins</div>
+              </div>
+              <div class="text-right">
+                <div class="text-lg font-bold text-purple-600" x-text="(account.active_rv||[]).length"></div>
+                <div class="text-xs text-gray-400">RVs</div>
+              </div>
+              <div class="text-right">
+                <div class="text-lg font-bold text-amber-600" x-text="(account.new_tenders||[]).length"></div>
+                <div class="text-xs text-gray-400">Neu</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Body -->
+          <div class="px-5 py-4 space-y-4">
+            <!-- Bisherige Wins -->
+            <template x-if="account.wins && account.wins.length>0">
+              <div>
+                <h5 class="text-xs font-bold text-gray-500 uppercase mb-2">✓ Wins (<span x-text="account.wins.length"></span>)</h5>
+                <div class="space-y-1">
+                  <template x-for="bid in account.wins.slice(0,3)" :key="bid.id">
+                    <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 text-sm">
+                      <span class="flex-1 text-gray-700 truncate" x-text="bid.title.slice(0,50)"></span>
+                      <span class="text-xs text-gray-400 flex-shrink-0" x-text="fmtDate(bid.updated_at)"></span>
+                    </div>
+                  </template>
+                  <template x-if="account.wins.length>3">
+                    <div class="text-xs text-indigo-600 font-medium px-3 py-1" x-text="'+ ' + (account.wins.length-3) + ' mehr'"></div>
+                  </template>
+                </div>
+              </div>
+            </template>
+
+            <!-- Aktive RVs -->
+            <template x-if="account.active_rv && account.active_rv.length>0">
+              <div>
+                <h5 class="text-xs font-bold text-gray-500 uppercase mb-2">📋 RVs (<span x-text="account.active_rv.length"></span>)</h5>
+                <div class="space-y-1">
+                  <template x-for="rv in account.active_rv.slice(0,3)" :key="rv.id">
+                    <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-50 text-sm">
+                      <span class="flex-1 text-gray-700 truncate" x-text="rv.titel.slice(0,50)"></span>
+                      <template x-if="rv.volumen_mio"><span class="text-xs text-gray-500 flex-shrink-0" x-text="fmtK(rv.volumen_mio*1e6)"></span></template>
+                    </div>
+                  </template>
+                  <template x-if="account.active_rv.length>3">
+                    <div class="text-xs text-indigo-600 font-medium px-3 py-1" x-text="'+ ' + (account.active_rv.length-3) + ' mehr'"></div>
+                  </template>
+                </div>
+              </div>
+            </template>
+
+            <!-- Neue Ausschreibungen -->
+            <template x-if="account.new_tenders && account.new_tenders.length>0">
+              <div>
+                <h5 class="text-xs font-bold text-gray-500 uppercase mb-2">🔍 Neue Ausschreibungen (<span x-text="account.new_tenders.length"></span>)</h5>
+                <div class="space-y-1">
+                  <template x-for="tender in account.new_tenders.slice(0,3)" :key="tender.id">
+                    <div class="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-50 text-sm">
+                      <div class="flex-1 min-w-0">
+                        <div class="text-gray-700 truncate font-medium" x-text="tender.title.slice(0,50)"></div>
+                        <div class="flex gap-2 items-center mt-0.5">
+                          <template x-if="tender.estimated_value">
+                            <span class="text-xs text-gray-500" x-text="fmtK(tender.estimated_value)"></span>
+                          </template>
+                          <template x-if="tender.incumbent">
+                            <span class="text-xs px-1 py-0.5 rounded bg-gray-100 text-gray-600" x-text="'Incumbent: ' + tender.incumbent.slice(0,20)"></span>
+                          </template>
+                        </div>
+                      </div>
+                      <div class="flex-shrink-0 text-right">
+                        <div class="text-xs text-amber-600 font-semibold" x-text="daysUntil(tender.submission_deadline) + ' d'"></div>
+                        <a :href="tenderUrl(tender)" target="_blank" rel="noopener" class="inline-flex items-center gap-0.5 text-xs text-indigo-600 hover:underline font-medium mt-0.5">
+                          <span x-text="tenderHasDirectUrl(tender)?'Öffnen':'TED'"></span>
+                          <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
+                        </a>
+                      </div>
+                    </div>
+                  </template>
+                  <template x-if="account.new_tenders.length>3">
+                    <div class="text-xs text-indigo-600 font-medium px-3 py-1" x-text="'+ ' + (account.new_tenders.length-3) + ' mehr'"></div>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
+    </div>
   </div>
 </div>
 
@@ -1372,6 +1554,8 @@ function BidOS(){
     {key:'itsm_asset_documentation',label:'ITSM & Asset Management',codes:['48218000-9','48311000-1','48613000-8','72251000-9','72261000-2']},
     {key:'managed_services_cloud',label:'Managed Services & Cloud',codes:['48620000-1','48610000-7','72000000-5','72222300-0','72250000-2','72253000-3','72253200-5','72260000-5','72315000-6','72611000-6']},
   ];
+  // Breite IT-Abdeckung: CPV-Hauptgruppen, fangen "egal welche IT-Sache" ab (Hardware, Software, IT-Dienste, Netzwerk, Telekom, Installation, Wartung)
+  const ALL_IT_CPV=['30200000','48000000','72000000','32400000','32500000','51600000','50300000','50310000','50320000','72600000','30230000','48800000','32420000','32570000'];
   return {
     STAGES, CPV_CATS, view:'dashboard', tab:'overview', online:false, loading:false, toast:'', toastErr:false,
     n8n: localStorage.getItem('bidos_n8n')||'https://stage.automate.enthus.de',
@@ -1405,8 +1589,9 @@ function BidOS(){
     },
     MW_LABELS:{fachlich:'Fachliche Passung',nachweise:'Zertifikate & Nachweise',referenzen:'Referenzen',rahmenvertrag:'Rahmenvertrags-Bezug',historie:'Erfahrung mit Vergabestelle',wirtschaftlich:'Wirtschaftl. Potenzial',frist:'Frist & Bearbeitbarkeit',compliance:'Compliance-Sicherheit',lieferrisiko:'Liefersicherheit',strategie:'Strategischer Fit'},
     matchWeights:(()=>{try{const w=JSON.parse(localStorage.getItem('bidos_match_weights'));if(w&&typeof w==='object')return w;}catch(e){}return{fachlich:3,nachweise:3,referenzen:2,rahmenvertrag:2,historie:2,wirtschaftlich:2,frist:2,compliance:2,lieferrisiko:1,strategie:1};})(),
-    rv:[], rvLoading:false, rvFilter:{status:'',kategorie:'',bundesland:'',relevant_only:true,search:''}, rvDetail:null,
-    rvTab:'contracts', rvBundeslandRadar:[], rvBundeslandRadarLoading:false,
+    rv:[], rvLoading:false, rvFilter:{status:'',kategorie:'',bundesland:'',relevant_only:true,search:'',auslauf:''}, rvDetail:null,
+    rvTab:'contracts', rvBundeslandRadar:[], rvBundeslandRadarLoading:false, radarHideExpired:true, radarBroadIT:true,
+    accountPlanData:[], accountPlanLoading:false, accountPlanFilter:{search:'',bundesland:'',only_with_wins:false,only_new_tenders:false},
     bk:[], bkLoading:false, bkFilter:{search:'',bundesland:'',org_typ:'',hpe_only:false,prio_only:false}, bkDetail:null,
     profile:{name:'',description:'',team_size:'',services:[],keywords:[],regions:[],cpv_categories:['datacenter_server_storage','network_connectivity','modern_workplace_clients','security_isms_defenderbox','backup_bcm_dpis','itsm_asset_documentation','managed_services_cloud']},
     notifyCfg:{webhook_url:'',channel_type:'slack'}, digestText:'',
@@ -1522,6 +1707,8 @@ function BidOS(){
       if(r&&r.success)this.notify('Notiz gespeichert');else this.notify('Speichern fehlgeschlagen',true);
     },
     async loadBK(){this.bkLoading=true;const r=await this.req('GET','/bund-kunden');this.bkLoading=false;if(r&&r.success)this.bk=r.kunden||[];},
+    async loadAccountPlan(){this.accountPlanLoading=true;try{const wins=this.bids.filter(b=>b.stage==='won')||[];const activeRVs=this.rv.filter(r=>['aktiv','vergabe'].includes(r.status))||[];this.accountPlanData=(this.bk||[]).map(bk=>{const bkName=bk.name||'';return{...bk,wins:wins.filter(b=>(b.client||'').includes(bkName)||(bkName).includes(b.client||'')),active_rv:activeRVs.filter(r=>(r.organisation||'').includes(bkName)||(bkName).includes(r.organisation||'')),new_tenders:[]}});}finally{this.accountPlanLoading=false;}},
+    async scanBuyerTED(account){this.accountPlanLoading=true;try{const resp=await this.req('POST','/ted-scan-buyer',{buyer_name:account.name,days_back:30,cpv_codes:ALL_IT_CPV});if(resp&&resp.success){let tenders=(resp.tenders||[]).filter(t=>!this.tenderIsExpired(t));const idx=this.accountPlanData.findIndex(a=>a.id===account.id);if(idx>=0)this.accountPlanData[idx].new_tenders=tenders;this.toast='✓ TED-Scan: '+tenders.length+' offene Ausschreibungen';}else{this.toast='❌ TED-Scan fehlgeschlagen';}}catch(e){this.toast='❌ Fehler: '+(e.message||'n8n nicht erreichbar');}finally{this.accountPlanLoading=false;}},
     rvIsLegacy(r){if(!r)return false;if(r.status==='abgeschlossen')return true;const y=parseInt(String(r.laufzeit_ende||'').slice(0,4));return !!y&&!isNaN(y)&&y<new Date().getFullYear();},
     get rvFiltered(){
       let list=this.rv;
@@ -1530,6 +1717,7 @@ function BidOS(){
       else if(this.rvFilter.status)list=list.filter(r=>r.status===this.rvFilter.status);
       if(this.rvFilter.kategorie)list=list.filter(r=>r.kategorie===this.rvFilter.kategorie);
       if(this.rvFilter.bundesland)list=list.filter(r=>r.bundesland===this.rvFilter.bundesland);
+      if(this.rvFilter.auslauf){const days=(r)=>this.getRVAuslaufDays(r);list=list.filter(r=>{const d=days(r);if(this.rvFilter.auslauf==='rot')return d!==null&&d<180;if(this.rvFilter.auslauf==='gelb')return d!==null&&d>=180&&d<365;if(this.rvFilter.auslauf==='gruen')return d!==null&&d>=365;return true;});}
       if(this.rvFilter.search){const q=this.rvFilter.search.toLowerCase();list=list.filter(r=>(r.titel||'').toLowerCase().includes(q)||(r.organisation||'').toLowerCase().includes(q)||(r.hersteller||'').toLowerCase().includes(q)||(r.incumbent||'').toLowerCase().includes(q));}
       return list.sort((a,b)=>{const ord={vergabe:0,auslauf:1,aktiv:2,geplant:3,abgeschlossen:4,unbekannt:5};return (ord[a.status]??9)-(ord[b.status]??9);});
     },
@@ -1542,15 +1730,20 @@ function BidOS(){
       this.rv.forEach(r=>{const key=r.bundesland||'Unbekannt';if(!map[key])map[key]={bundesland:key,nuts_code:r.nuts_code||'',orgs:new Set(),vertraege:[],inVergabe:0,auslauf:0,aktiv:0,legacy:0};map[key].orgs.add(r.organisation);map[key].vertraege.push(r);if(r.status==='vergabe')map[key].inVergabe++;if(r.status==='auslauf')map[key].auslauf++;if(r.status==='aktiv')map[key].aktiv++;if(this.rvIsLegacy(r))map[key].legacy++;});
       return Object.values(map).map(g=>({...g,orgs:[...g.orgs]})).sort((a,b)=>(b.inVergabe+b.auslauf)-(a.inVergabe+a.auslauf)||b.vertraege.length-a.vertraege.length);
     },
+    tenderIsExpired(t){if(!t)return false;const dl=t.deadline||t.submission_deadline;if(!dl)return false;const d=this.daysUntil(dl);return d!==null&&d<0;},
+    tenderUrl(t){if(!t)return 'https://ted.europa.eu/de/';if(t.url)return t.url;const q=encodeURIComponent([t.title,t.buyer||t.authority].filter(Boolean).join(' '));return q?('https://ted.europa.eu/de/search/result?text='+q):'https://ted.europa.eu/de/';},
+    tenderHasDirectUrl(t){return !!(t&&t.url);},
+    get rvRadarExpiredCount(){return this.rvBundeslandRadar.filter(t=>this.tenderIsExpired(t)).length;},
     get rvRadarGrouped(){
       const map={};
-      this.rvBundeslandRadar.forEach(t=>{const key=t.bundesland||t.nuts_code||'DE';if(!map[key])map[key]=[];map[key].push(t);});
+      this.rvBundeslandRadar.forEach(t=>{if(this.radarHideExpired&&this.tenderIsExpired(t))return;const key=t.bundesland||t.nuts_code||'DE';if(!map[key])map[key]=[];map[key].push(t);});
       return Object.entries(map).map(([land,items])=>({land,items})).sort((a,b)=>b.items.length-a.items.length);
     },
     async scanBundeslandRadar(){
       this.rvBundeslandRadarLoading=true;
-      const activeCats=CPV_CATS.filter(c=>(this.profile.cpv_categories||[]).includes(c.key));
-      const cpvCodes=activeCats.flatMap(c=>c.codes.map(code=>code.replace(/-\d$/,'')));
+      let cpvCodes;
+      if(this.radarBroadIT){cpvCodes=ALL_IT_CPV;}
+      else{const activeCats=CPV_CATS.filter(c=>(this.profile.cpv_categories||[]).includes(c.key));cpvCodes=activeCats.flatMap(c=>c.codes.map(code=>code.replace(/-\d$/,'')));}
       const nutsCodes=['DE1','DE2','DE3','DE4','DE5','DE6','DE7','DE8','DE9','DEA','DEB','DEC','DED','DEE','DEF','DEG'];
       const r=await this.req('POST','/radar-scan-rv',{nuts_codes:nutsCodes,cpv_codes:cpvCodes});
       this.rvBundeslandRadarLoading=false;
@@ -1561,6 +1754,10 @@ function BidOS(){
     rvStatusLabel(s){return{aktiv:'Aktiv',auslauf:'Auslauf',vergabe:'In Vergabe',geplant:'Geplant',abgeschlossen:'Abgeschlossen',unbekannt:'Unbekannt'}[s]||s;},
     rvTierCls(t){return{1:'bg-indigo-600 text-white',2:'bg-indigo-400 text-white',3:'bg-slate-300 text-slate-700',4:'bg-slate-100 text-slate-500'}[t]||'bg-gray-100 text-gray-500';},
     rvEndeClass(ende){if(!ende)return'';const y=parseInt(String(ende).slice(0,4));if(!y||isNaN(y))return'';if(y<=2026)return'text-red-600 font-bold';if(y<=2027)return'text-amber-600 font-semibold';return'text-gray-600';},
+    getRVAuslaufDays(rv){if(!rv||!rv.laufzeit_ende)return null;const endStr=String(rv.laufzeit_ende).slice(0,4);const endYear=parseInt(endStr);if(!endYear||isNaN(endYear))return null;const endDate=new Date(endYear,11,31);const today=new Date();today.setHours(0,0,0,0);endDate.setHours(0,0,0,0);return Math.floor((endDate-today)/(1000*60*60*24));},
+    getRVAuslaufClass(rv){const days=this.getRVAuslaufDays(rv);if(days===null)return'bg-gray-300';if(days<0)return'bg-gray-400';if(days<180)return'bg-red-500';if(days<365)return'bg-amber-400';return'bg-emerald-400';},
+    getRVAuslaufText(rv){const days=this.getRVAuslaufDays(rv);if(days===null)return'—';if(days<0)return'Ausgel.';if(days===0)return'HEUTE';if(days<=7)return days+' Tage';if(days<30)return'in '+Math.ceil(days/1)+'d';if(days<365)return Math.floor(days/30)+'M';return Math.floor(days/365)+'J';},
+    getRVAuslaufTextClass(rv){const days=this.getRVAuslaufDays(rv);if(days===null)return'text-gray-500';if(days<0)return'text-gray-500';if(days<180)return'text-red-600 font-semibold';if(days<365)return'text-amber-600 font-semibold';return'text-emerald-600';},
     get bkFiltered(){
       let list=this.bk;
       if(this.bkFilter.hpe_only)list=list.filter(r=>r.hpe_9991);
@@ -1576,6 +1773,7 @@ function BidOS(){
     bkPrioLabel(p){return{1:'Prio 1',2:'Prio 2',3:'Prio 3'}[p]||'—';},
     bkTypLabel(t){return{ministerium:'Ministerium',bundesamt:'Bundesamt',bundesanstalt:'Bundesanstalt',gericht:'Gericht',forschung:'Forschung',militaer:'Militär',sonstige:'Sonstige'}[t]||t;},
     bkTypCls(t){return{ministerium:'bg-violet-100 text-violet-700',bundesamt:'bg-blue-100 text-blue-700',bundesanstalt:'bg-sky-100 text-sky-700',gericht:'bg-orange-100 text-orange-700',forschung:'bg-teal-100 text-teal-700',militaer:'bg-slate-200 text-slate-700',sonstige:'bg-gray-100 text-gray-600'}[t]||'bg-gray-100 text-gray-500';},
+    get accountPlanFiltered(){let list=this.accountPlanData;if(this.accountPlanFilter.search){const q=this.accountPlanFilter.search.toLowerCase();list=list.filter(a=>(a.name||'').toLowerCase().includes(q)||(a.kuerzel||'').toLowerCase().includes(q));}if(this.accountPlanFilter.bundesland)list=list.filter(a=>a.bundesland===this.accountPlanFilter.bundesland);if(this.accountPlanFilter.only_with_wins)list=list.filter(a=>(a.wins||[]).length>0);if(this.accountPlanFilter.only_new_tenders)list=list.filter(a=>(a.new_tenders||[]).length>0);return list.sort((a,b)=>(b.wins||[]).length-(a.wins||[]).length||(a.name||'').localeCompare(b.name||'','de'));},
 
     // ── nav ──
     go(v){this.view=v;if(v==='dashboard'){this.loadMetrics();}},
