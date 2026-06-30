@@ -273,22 +273,31 @@ body{font-feature-settings:'cv11','ss01';letter-spacing:-0.006em}
     </select>
   </div>
   <template x-if="!loading && filteredBids.length===0"><div class="bg-white rounded-2xl border border-gray-100 p-12 text-center shadow-sm"><div class="text-4xl mb-3">📋</div><p class="text-sm font-semibold text-gray-600">Keine Ausschreibungen</p><button @click="openCreate()" class="mt-4 bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-semibold">Erste erfassen</button></div></template>
-  <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden" x-show="filteredBids.length>0">
-    <div class="divide-y divide-gray-50">
-      <template x-for="b in filteredBids" :key="b.id">
-        <div @click="openDetail(b.id)" class="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 cursor-pointer transition group">
-          <div class="w-2 h-2 rounded-full flex-shrink-0" :class="stageDot(b.stage)"></div>
-          <template x-if="b._dec"><div class="w-9 h-9 rounded-lg border flex items-center justify-center flex-shrink-0 text-xs font-bold" :class="recBorder(b._dec.recommendation)" x-text="b._dec.score"></div></template>
-          <div class="flex-1 min-w-0"><div class="text-sm font-semibold text-gray-900 truncate" x-text="b.title"></div><div class="text-xs text-gray-400 truncate" x-text="b.client||'—'"></div></div>
-          <span class="text-xs px-2 py-0.5 rounded-full font-semibold hidden md:block" :class="stageBadge(b.stage)" x-text="stageLabel(b.stage)"></span>
-          <div class="text-right w-28 flex-shrink-0 hidden sm:block"><div class="text-xs font-semibold text-gray-700" x-text="fmtK(b.value)"></div><div class="text-xs text-gray-300" x-text="'gew. '+fmtK(b.weighted_value)"></div></div>
-          <div class="text-right w-24 flex-shrink-0"><div class="text-xs font-semibold" :class="dueClass(b.deadline)" x-text="dueShort(b.deadline)"></div><div class="text-xs text-gray-300" x-text="fmtDate(b.deadline)||'—'"></div></div>
-          <a :href="tenderUrl(b)" @click.stop target="_blank" rel="noopener" class="flex-shrink-0 p-1.5 rounded-lg transition" :class="tenderHasDirectUrl(b)?'text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50':'text-gray-300 hover:text-gray-500 hover:bg-gray-100'" :title="tenderHasDirectUrl(b)?'Zur Ausschreibung':'Auf TED suchen'">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
-          </a>
+  <div class="space-y-3" x-show="filteredBids.length>0">
+    <template x-for="g in bidGroups" :key="g.stage">
+      <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        <button @click="toggleStageGroup(g.stage)" class="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition text-left">
+          <svg class="w-4 h-4 text-gray-400 transition-transform flex-shrink-0" :class="isStageOpen(g.stage)?'rotate-90':''" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          <span class="w-2 h-2 rounded-full flex-shrink-0" :class="stageDot(g.stage)"></span>
+          <span class="text-sm font-bold text-gray-800" x-text="g.label"></span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-semibold" x-text="g.count"></span>
+          <span class="text-xs text-gray-400 ml-auto" x-text="fmtK(g.value)"></span>
+        </button>
+        <div x-show="isStageOpen(g.stage)" x-collapse class="divide-y divide-gray-50 border-t border-gray-50">
+          <template x-for="b in g.bids" :key="b.id">
+            <div @click="openDetail(b.id)" class="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 cursor-pointer transition group">
+              <template x-if="b._dec"><div class="w-9 h-9 rounded-lg border flex items-center justify-center flex-shrink-0 text-xs font-bold" :class="recBorder(b._dec.recommendation)" x-text="b._dec.score"></div></template>
+              <div class="flex-1 min-w-0"><div class="text-sm font-semibold text-gray-900 truncate" x-text="b.title"></div><div class="text-xs text-gray-400 truncate" x-text="b.client||'—'"></div></div>
+              <div class="text-right w-28 flex-shrink-0 hidden sm:block"><div class="text-xs font-semibold text-gray-700" x-text="fmtK(b.value)"></div><div class="text-xs text-gray-300" x-text="'gew. '+fmtK(b.weighted_value)"></div></div>
+              <div class="text-right w-24 flex-shrink-0"><div class="text-xs font-semibold" :class="dueClass(b.deadline)" x-text="dueShort(b.deadline)"></div><div class="text-xs text-gray-300" x-text="fmtDate(b.deadline)||'—'"></div></div>
+              <a :href="tenderUrl(b)" @click.stop target="_blank" rel="noopener" class="flex-shrink-0 p-1.5 rounded-lg transition" :class="tenderHasDirectUrl(b)?'text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50':'text-gray-300 hover:text-gray-500 hover:bg-gray-100'" :title="tenderHasDirectUrl(b)?'Zur Ausschreibung':'Auf TED suchen'">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
+              </a>
+            </div>
+          </template>
         </div>
-      </template>
-    </div>
+      </div>
+    </template>
   </div>
 </div>
 
@@ -1967,7 +1976,7 @@ function BidOS(){
     profile:{name:'',description:'',team_size:'',services:[],keywords:[],regions:[],cpv_categories:['datacenter_server_storage','network_connectivity','modern_workplace_clients','security_isms_defenderbox','backup_bcm_dpis','itsm_asset_documentation','managed_services_cloud'],exclude_keywords:[...EXCLUDE_DEFAULT]},
     radarHideUnfit:true, nExcl:'',
     notifyCfg:{webhook_url:'',channel_type:'slack'}, digestText:'',
-    search:'', filterStage:'', curId:null,
+    search:'', filterStage:'', curId:null, collapsedStages:['won','lost','archived','no_go_decided'],
     bidModal:false, editId:null, form:{},
     docModal:false, editDocId:null, docForm:{title:'',category:'Zertifikat',description:'',keywords:'',valid_until:''},
     anaModal:false, ana:null, selA:[], selD:[], selT:[], analyzing:false, anaTargetId:null,
@@ -2191,6 +2200,9 @@ function BidOS(){
     get activeCount(){return this.bids.filter(b=>['evaluating','go_decided','in_progress'].includes(b.stage)).length;},
     get radarNew(){return this.radar.filter(r=>r.status==='new').length;},
     get filteredBids(){const s=this.search.toLowerCase();return this.bids.filter(b=>(!s||b.title.toLowerCase().includes(s)||(b.client||'').toLowerCase().includes(s))&&(!this.filterStage||b.stage===this.filterStage)).sort((a,b)=>(a.deadline||'zzz').localeCompare(b.deadline||'zzz'));},
+    get bidGroups(){const map={};this.filteredBids.forEach(b=>{const s=b.stage||'incoming';(map[s]=map[s]||[]).push(b);});return STAGES.filter(s=>map[s]).map(s=>({stage:s,label:this.stageLabel(s),bids:map[s],count:map[s].length,value:map[s].reduce((a,b)=>a+Number(b.value||0),0)}));},
+    isStageOpen(s){return this.filterStage===s||!this.collapsedStages.includes(s);},
+    toggleStageGroup(s){const i=this.collapsedStages.indexOf(s);if(i>=0)this.collapsedStages.splice(i,1);else this.collapsedStages.push(s);},
     get topDecisions(){return [...this.bids].sort((a,b)=>(b._dec?.score||-1)-(a._dec?.score||-1)).slice(0,6);},
     get deadlineList(){const open=new Set(['incoming','evaluating','go_decided','in_progress','submitted']);return this.bids.filter(b=>b.deadline&&open.has(b.stage)).sort((a,b)=>a.deadline.localeCompare(b.deadline)).slice(0,8);},
     byStage(st){return this.bids.filter(b=>b.stage===st);},
