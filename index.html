@@ -576,6 +576,111 @@ body{font-feature-settings:'cv11','ss01';letter-spacing:-0.006em}
       </div>
     </div>
 
+    <!-- Vergaberecht & Bieterfragen -->
+    <div x-show="tab==='vergabe'" class="space-y-4">
+      <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+          <div class="flex items-start gap-3">
+            <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0 text-lg">⚖️</div>
+            <div>
+              <h4 class="text-sm font-bold text-gray-900">Vergaberecht & Bieterfragen-Zentrum</h4>
+              <p class="text-xs text-gray-500 mt-0.5 max-w-xl">KI-Analyse (GWB/VgV/UVgO): vergaberechtlich saubere Bieterfragen, Rüge-Radar bei Verstößen und K.-o.-Selbstschutz — damit ihr nicht ungerechtfertigt ausgeschlossen werdet.</p>
+            </div>
+          </div>
+          <button @click="runVergabeAnalyse(cur)" :disabled="vergabeLoading" class="flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 disabled:opacity-50 flex-shrink-0">
+            <svg x-show="vergabeLoading" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+            <span x-text="vergabeLoading?'Analysiert…':(cur._vergabe?'↻ Neu analysieren':'⚖️ Analyse starten')"></span>
+          </button>
+        </div>
+        <p class="text-[10px] text-gray-400 mt-3">⚠️ KI-gestützte Orientierungshilfe, kein Ersatz für anwaltliche Beratung. Rügeobliegenheit gilt unverzüglich — Fristen selbst prüfen.</p>
+      </div>
+
+      <template x-if="!cur._vergabe && !vergabeLoading">
+        <div class="border-2 border-dashed border-gray-200 rounded-2xl p-10 text-center">
+          <div class="text-3xl mb-2">⚖️</div>
+          <p class="text-sm font-semibold text-gray-600">Noch keine Analyse</p>
+          <p class="text-xs text-gray-400 mt-1">„Analyse starten" prüft die Ausschreibung auf taktische Bieterfragen, rügefähige Verstöße & Ausschlussrisiken</p>
+        </div>
+      </template>
+
+      <template x-if="cur._vergabe">
+        <div class="space-y-4">
+          <!-- Kontext + Zusammenfassung -->
+          <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4">
+            <div class="flex items-center gap-2 mb-1.5">
+              <span class="text-xs px-2 py-0.5 rounded-full font-bold" :class="cur._vergabe.kontext.schwelle==='ober'?'bg-violet-100 text-violet-700':cur._vergabe.kontext.schwelle==='unter'?'bg-blue-100 text-blue-700':'bg-gray-100 text-gray-500'" x-text="{ober:'Oberschwellig (EU)',unter:'Unterschwellig (national)',unklar:'Schwelle unklar'}[cur._vergabe.kontext.schwelle]||'Schwelle unklar'"></span>
+            </div>
+            <p class="text-xs text-gray-700 leading-relaxed" x-text="cur._vergabe.zusammenfassung"></p>
+            <template x-if="(cur._vergabe.kontext.hinweis_fehlende_infos||[]).length">
+              <div class="mt-2 text-[11px] text-amber-700"><b>Fehlende Infos:</b> <span x-text="cur._vergabe.kontext.hinweis_fehlende_infos.join(' · ')"></span></div>
+            </template>
+          </div>
+
+          <!-- Bieterfragen -->
+          <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+            <h5 class="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">💬 Bieterfragen <span class="text-xs font-normal text-gray-400" x-text="'('+cur._vergabe.bieterfragen.length+')'"></span></h5>
+            <template x-if="!cur._vergabe.bieterfragen.length"><p class="text-xs text-gray-400">Keine kritischen Fragen identifiziert.</p></template>
+            <div class="space-y-3">
+              <template x-for="(q,i) in cur._vergabe.bieterfragen" :key="i">
+                <div class="border border-gray-100 rounded-xl p-3 hover:bg-gray-50/50">
+                  <div class="flex items-start gap-2.5">
+                    <div class="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1.5" :class="ampelCls(q.ampel)"></div>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm text-gray-800 leading-snug" x-text="q.frage"></p>
+                      <div class="flex flex-wrap items-center gap-2 mt-1.5">
+                        <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 font-semibold" x-text="q.rechtsgrundlage"></span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500" x-text="{aufklaerung:'Aufklärung',produktneutralitaet:'Produktneutralität',usp_lenkung:'USP-Lenkung',widerspruch:'Widerspruch',vor_ruege:'Sanfte Vor-Rüge'}[q.ziel]||q.ziel"></span>
+                        <template x-if="q.taktik"><span class="text-[10px] text-gray-400 italic" x-text="'→ '+q.taktik"></span></template>
+                      </div>
+                    </div>
+                    <button @click="copyText(q.frage)" class="text-[10px] px-2 py-1 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-100 flex-shrink-0" title="Frage kopieren">Kopieren</button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Rüge-Radar -->
+          <template x-if="cur._vergabe.ruege_radar.length">
+            <div class="bg-white border border-red-100 rounded-2xl p-5 shadow-sm">
+              <h5 class="text-sm font-bold text-red-700 mb-3 flex items-center gap-2">🚨 Rüge-Radar <span class="text-xs font-normal text-gray-400" x-text="'('+cur._vergabe.ruege_radar.length+')'"></span></h5>
+              <div class="space-y-3">
+                <template x-for="(rr,i) in cur._vergabe.ruege_radar" :key="i">
+                  <div class="border rounded-xl p-3" :class="rr.ampel==='rot'?'border-red-200 bg-red-50/40':'border-amber-200 bg-amber-50/40'">
+                    <div class="flex items-center gap-2 mb-1">
+                      <div class="w-2.5 h-2.5 rounded-full" :class="ampelCls(rr.ampel)"></div>
+                      <span class="text-xs font-bold" :class="ampelText(rr.ampel)" x-text="rr.verstoss"></span>
+                      <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-white border border-gray-200 text-gray-600 font-semibold ml-auto" x-text="rr.paragraph"></span>
+                    </div>
+                    <p class="text-xs text-gray-600 mb-2" x-text="rr.sachverhalt"></p>
+                    <div class="bg-white border border-gray-100 rounded-lg p-2.5">
+                      <div class="flex items-center justify-between mb-1"><span class="text-[10px] font-bold text-gray-400 uppercase">Rüge-Entwurf</span><button @click="copyText(rr.ruege_entwurf)" class="text-[10px] px-2 py-0.5 border border-gray-200 rounded text-gray-500 hover:bg-gray-100">Kopieren</button></div>
+                      <p class="text-xs text-gray-700 leading-relaxed" x-text="rr.ruege_entwurf"></p>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+
+          <!-- Selbstschutz -->
+          <template x-if="cur._vergabe.selbstschutz.length">
+            <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+              <h5 class="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">🛡️ Selbstschutz (K.-o.-Check)</h5>
+              <div class="space-y-2">
+                <template x-for="(s,i) in cur._vergabe.selbstschutz" :key="i">
+                  <div class="flex items-start gap-2.5 text-xs">
+                    <div class="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5" :class="ampelCls(s.ampel)"></div>
+                    <div><span class="font-semibold text-gray-700" x-text="s.punkt"></span><span class="text-gray-500" x-text="': '+s.hinweis"></span></div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
+      </template>
+    </div>
+
     <!-- Compliance -->
     <div x-show="tab==='compliance'">
       <div class="card p-5">
@@ -1694,7 +1799,8 @@ function BidOS(){
       {id:'rahmenvertraege',label:'Rahmenverträge',icon:'M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z'},
       {id:'profile',label:'Unternehmensprofil',icon:'M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z'},
     ],
-    detailTabs:[{id:'overview',label:'Übersicht'},{id:'decision',label:'GO/NO-GO ✨'},{id:'criteria',label:'Anforderungen'},{id:'docs',label:'Einzureichen'},{id:'compliance',label:'Compliance'},{id:'tasks',label:'Aufgaben'},{id:'concept',label:'Konzept ✨'},{id:'activity',label:'Verlauf'}],
+    detailTabs:[{id:'overview',label:'Übersicht'},{id:'decision',label:'GO/NO-GO ✨'},{id:'criteria',label:'Anforderungen'},{id:'docs',label:'Einzureichen'},{id:'vergabe',label:'Vergaberecht ⚖️'},{id:'compliance',label:'Compliance'},{id:'tasks',label:'Aufgaben'},{id:'concept',label:'Konzept ✨'},{id:'activity',label:'Verlauf'}],
+    vergabeLoading:false,
     bids:[], clients:[], m:{}, radar:[], docpool:[], decisions:{}, docUploading:false, docUpName:'', validityLoading:false,
     matchLoading:false, showWeights:false, factorInfo:null, docSearch:'', docSort:'name',
     decForm:{entscheidung:'',begruendung:''}, decSaving:false, bidDecisions:[],
@@ -2128,6 +2234,16 @@ function BidOS(){
       else this.notify((r&&r.error&&r.error.message)||'Match-Berechnung fehlgeschlagen',true);
     },
     // ── Validity Check (Roadmap Schritt 2) ──
+    async runVergabeAnalyse(b){
+      this.vergabeLoading=true;
+      const r=await this.req('POST','/vergabe-analyse',{bid_id:b.id});
+      this.vergabeLoading=false;
+      if(r&&r.success&&r.analyse)b._vergabe=r.analyse;
+      else this.notify((r&&r.error&&r.error.message)||'Vergaberecht-Analyse fehlgeschlagen',true);
+    },
+    ampelCls(a){return{rot:'bg-red-500',gelb:'bg-amber-400',gruen:'bg-emerald-400'}[a]||'bg-gray-300';},
+    ampelText(a){return{rot:'text-red-600',gelb:'text-amber-600',gruen:'text-emerald-600'}[a]||'text-gray-500';},
+    async copyText(t){try{await navigator.clipboard.writeText(t);this.notify('In Zwischenablage kopiert');}catch(e){this.notify('Kopieren nicht möglich',true);}},
     async runValidity(b){
       this.validityLoading=true;
       const r=await this.req('POST','/validity-check',{bid_id:b.id});
