@@ -2007,6 +2007,7 @@ function BidOS(){
 
     async init(){
       this.dark=localStorage.getItem('bidos_dark')==='1';
+      try{const cs=localStorage.getItem('bidos_collapsed');if(cs)this.collapsedStages=JSON.parse(cs);}catch(e){}
       try{this.bids=JSON.parse(localStorage.getItem('bidos_cache_bids')||'[]');}catch(e){}
       try{this.decisions=JSON.parse(localStorage.getItem('bidos_cache_dec')||'{}');}catch(e){}
       if(this.authToken) await this.refreshAll();
@@ -2202,7 +2203,7 @@ function BidOS(){
     get filteredBids(){const s=this.search.toLowerCase();return this.bids.filter(b=>(!s||b.title.toLowerCase().includes(s)||(b.client||'').toLowerCase().includes(s))&&(!this.filterStage||b.stage===this.filterStage)).sort((a,b)=>(a.deadline||'zzz').localeCompare(b.deadline||'zzz'));},
     get bidGroups(){const map={};this.filteredBids.forEach(b=>{const s=b.stage||'incoming';(map[s]=map[s]||[]).push(b);});return STAGES.filter(s=>map[s]).map(s=>({stage:s,label:this.stageLabel(s),bids:map[s],count:map[s].length,value:map[s].reduce((a,b)=>a+Number(b.value||0),0)}));},
     isStageOpen(s){return this.filterStage===s||!this.collapsedStages.includes(s);},
-    toggleStageGroup(s){const i=this.collapsedStages.indexOf(s);if(i>=0)this.collapsedStages.splice(i,1);else this.collapsedStages.push(s);},
+    toggleStageGroup(s){const i=this.collapsedStages.indexOf(s);if(i>=0)this.collapsedStages.splice(i,1);else this.collapsedStages.push(s);try{localStorage.setItem('bidos_collapsed',JSON.stringify(this.collapsedStages));}catch(e){}},
     get topDecisions(){return [...this.bids].sort((a,b)=>(b._dec?.score||-1)-(a._dec?.score||-1)).slice(0,6);},
     get deadlineList(){const open=new Set(['incoming','evaluating','go_decided','in_progress','submitted']);return this.bids.filter(b=>b.deadline&&open.has(b.stage)).sort((a,b)=>a.deadline.localeCompare(b.deadline)).slice(0,8);},
     byStage(st){return this.bids.filter(b=>b.stage===st);},
