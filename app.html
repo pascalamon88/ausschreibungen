@@ -134,6 +134,43 @@ body{font-feature-settings:'cv11','ss01';letter-spacing:-0.006em}
     <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm"><div class="text-base font-bold text-gray-800 leading-tight" x-text="fmtK(m.expected_margin)"></div><div class="text-xs text-gray-400 mt-0.5">Erw. Deckungsbeitrag</div></div>
   </div>
 
+  <!-- Erfolgs-Tracking (Quartal/Jahr) -->
+  <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
+    <div class="px-5 py-4 border-b border-gray-50 flex items-center justify-between flex-wrap gap-3">
+      <span class="text-sm font-semibold text-gray-800">📊 Erfolgs-Tracking</span>
+      <div class="flex items-center gap-4 flex-wrap">
+        <div class="text-xs text-gray-500">Gesamt-Erfolgsquote: <b class="text-gray-800" x-text="winTrackingTotals.winRate!=null?winTrackingTotals.winRate+'%':'—'"></b> · Gewonnenes Volumen: <b class="text-emerald-600" x-text="fmtK(winTrackingTotals.wonValue)"></b></div>
+        <div class="flex gap-1 bg-gray-100 p-1 rounded-lg">
+          <button @click="trackingMode='quarter'" class="text-xs px-3 py-1 rounded-md font-semibold transition" :class="trackingMode==='quarter'?'bg-white text-gray-800 shadow-sm':'text-gray-500 hover:text-gray-700'">Quartal</button>
+          <button @click="trackingMode='year'" class="text-xs px-3 py-1 rounded-md font-semibold transition" :class="trackingMode==='year'?'bg-white text-gray-800 shadow-sm':'text-gray-500 hover:text-gray-700'">Jahr</button>
+        </div>
+      </div>
+    </div>
+    <div class="p-5">
+      <template x-if="winTracking.length===0"><div class="text-center text-sm text-gray-400 py-6">Noch keine abgeschlossenen oder eingereichten Ausschreibungen</div></template>
+      <div class="space-y-1" x-show="winTracking.length>0">
+        <div class="grid grid-cols-12 gap-2 text-[11px] font-semibold text-gray-400 uppercase px-1 pb-1">
+          <div class="col-span-2">Zeitraum</div><div class="col-span-1 text-right">Beteiligt</div><div class="col-span-1 text-right">Gewonnen</div><div class="col-span-1 text-right">Verloren</div><div class="col-span-1 text-right">Offen</div><div class="col-span-4 pl-2">Erfolgsquote</div><div class="col-span-2 text-right">Volumen gew.</div>
+        </div>
+        <template x-for="p in winTracking" :key="p.key">
+          <div class="grid grid-cols-12 gap-2 items-center text-xs py-1.5 border-t border-gray-50">
+            <div class="col-span-2 font-semibold text-gray-700" x-text="p.key"></div>
+            <div class="col-span-1 text-right text-gray-600" x-text="p.total"></div>
+            <div class="col-span-1 text-right text-emerald-600 font-semibold" x-text="p.won"></div>
+            <div class="col-span-1 text-right text-red-500" x-text="p.lost"></div>
+            <div class="col-span-1 text-right text-gray-400" x-text="p.pending"></div>
+            <div class="col-span-4 flex items-center gap-2 pl-2">
+              <div class="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden"><div class="h-2.5 rounded-full transition-all" :class="p.winRate>=50?'bg-emerald-400':p.winRate!=null?'bg-amber-400':'bg-gray-200'" :style="'width:'+(p.winRate||0)+'%'"></div></div>
+              <span class="w-9 text-right font-semibold" :class="p.winRate==null?'text-gray-300':p.winRate>=50?'text-emerald-600':'text-amber-600'" x-text="p.winRate!=null?p.winRate+'%':'—'"></span>
+            </div>
+            <div class="col-span-2 text-right text-gray-600" x-text="fmtK(p.wonValue)"></div>
+          </div>
+        </template>
+      </div>
+      <p class="text-[10px] text-gray-400 mt-3">Erfolgsquote = gewonnen ÷ (gewonnen + verloren). „Offen" = eingereicht, Ergebnis ausstehend. Zeitraum nach letztem Status-Datum.</p>
+    </div>
+  </div>
+
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <!-- GO/NO-GO recommendations -->
     <div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
@@ -1624,7 +1661,7 @@ function BidOS(){
     MW_LABELS:{fachlich:'Fachliche Passung',nachweise:'Zertifikate & Nachweise',referenzen:'Referenzen',rahmenvertrag:'Rahmenvertrags-Bezug',historie:'Erfahrung mit Vergabestelle',wirtschaftlich:'Wirtschaftl. Potenzial',frist:'Frist & Bearbeitbarkeit',compliance:'Compliance-Sicherheit',lieferrisiko:'Liefersicherheit',strategie:'Strategischer Fit'},
     matchWeights:(()=>{try{const w=JSON.parse(localStorage.getItem('bidos_match_weights'));if(w&&typeof w==='object')return w;}catch(e){}return{fachlich:3,nachweise:3,referenzen:2,rahmenvertrag:2,historie:2,wirtschaftlich:2,frist:2,compliance:2,lieferrisiko:1,strategie:1};})(),
     rv:[], rvLoading:false, rvFilter:{status:'',kategorie:'',bundesland:'',relevant_only:true,search:'',auslauf:''}, rvDetail:null,
-    rvTab:'contracts', rvBundeslandRadar:[], rvBundeslandRadarLoading:false, radarHideExpired:true, radarBroadIT:true, radarHorizon:'',
+    rvTab:'contracts', rvBundeslandRadar:[], rvBundeslandRadarLoading:false, radarHideExpired:true, radarBroadIT:true, radarHorizon:'', trackingMode:'quarter',
     accountPlanData:[], accountPlanLoading:false, accountPlanFilter:{search:'',bundesland:'',only_with_wins:false,only_new_tenders:false},
     bk:[], bkLoading:false, bkFilter:{search:'',bundesland:'',org_typ:'',hpe_only:false,prio_only:false}, bkDetail:null,
     profile:{name:'',description:'',team_size:'',services:[],keywords:[],regions:[],cpv_categories:['datacenter_server_storage','network_connectivity','modern_workplace_clients','security_isms_defenderbox','backup_bcm_dpis','itsm_asset_documentation','managed_services_cloud']},
@@ -1771,6 +1808,24 @@ function BidOS(){
     get radarVisible(){let list=this.radar.filter(x=>x.status!=='dismissed');if(this.radarHideExpired)list=list.filter(x=>!this.tenderIsExpired(x));const max=this.radarHorizonDays();if(max!=null)list=list.filter(x=>{const dl=x.submission_deadline||x.deadline;if(!dl)return false;const d=this.daysUntil(dl);return d!==null&&d>=0&&d<=max;});return list;},
     get radarExpiredCount(){return this.radar.filter(x=>x.status!=='dismissed'&&this.tenderIsExpired(x)).length;},
     radarHorizonCount(h){const max={'3m':92,'6m':183,'1y':366,'3y':1096}[h];let list=this.radar.filter(x=>x.status!=='dismissed'&&!this.tenderIsExpired(x));if(max==null)return list.length;return list.filter(x=>{const dl=x.submission_deadline||x.deadline;if(!dl)return false;const d=this.daysUntil(dl);return d!==null&&d>=0&&d<=max;}).length;},
+    bidOutcomeDate(b){return (b.updated_at||b.deadline||b.created_at||'');},
+    get winTracking(){
+      const mode=this.trackingMode;const buckets={};
+      this.bids.forEach(b=>{
+        if(!['won','lost','submitted'].includes(b.stage))return;
+        const raw=this.bidOutcomeDate(b);if(!raw)return;
+        const s=String(raw).slice(0,10);const y=s.slice(0,4);const mo=parseInt(s.slice(5,7))||1;
+        if(!/^\d{4}$/.test(y))return;
+        const key=mode==='year'?y:(y+' Q'+(Math.floor((mo-1)/3)+1));
+        if(!buckets[key])buckets[key]={key,total:0,won:0,lost:0,pending:0,wonValue:0};
+        const bk=buckets[key];bk.total++;
+        if(b.stage==='won'){bk.won++;bk.wonValue+=Number(b.value||0);}
+        else if(b.stage==='lost'){bk.lost++;}
+        else{bk.pending++;}
+      });
+      return Object.values(buckets).map(bk=>({...bk,decided:bk.won+bk.lost,winRate:(bk.won+bk.lost)?Math.round(bk.won/(bk.won+bk.lost)*100):null})).sort((a,b)=>a.key<b.key?1:(a.key>b.key?-1:0));
+    },
+    get winTrackingTotals(){const t={total:0,won:0,lost:0,pending:0,wonValue:0};this.winTracking.forEach(b=>{t.total+=b.total;t.won+=b.won;t.lost+=b.lost;t.pending+=b.pending;t.wonValue+=b.wonValue;});t.winRate=(t.won+t.lost)?Math.round(t.won/(t.won+t.lost)*100):null;return t;},
     get rvRadarExpiredCount(){return this.rvBundeslandRadar.filter(t=>this.tenderIsExpired(t)).length;},
     get rvRadarGrouped(){
       const map={};
