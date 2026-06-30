@@ -748,8 +748,12 @@ body{font-feature-settings:'cv11','ss01';letter-spacing:-0.006em}
 
 <!-- ════════ RADAR ════════ -->
 <div x-show="view==='radar'" x-cloak class="p-6 max-w-5xl mx-auto">
-  <div class="flex items-center justify-between mb-5"><div><h3 class="text-base font-bold text-gray-900">Ausschreibungsradar</h3><p class="text-xs text-gray-400 mt-0.5">Quelle: TED (EU/CH/DE) · täglich 07:00 + on-demand · Match aus Profil-Keywords</p></div>
-    <div class="flex items-center gap-3">
+  <div class="flex items-center justify-between mb-5"><div><h3 class="text-base font-bold text-gray-900">Ausschreibungsradar</h3><p class="text-xs text-gray-400 mt-0.5">Quellen: TED (EU) + Bund (national) · täglich 07:00 + on-demand · Relevanz-Screening aktiv</p></div>
+    <div class="flex items-center gap-3 flex-wrap justify-end">
+      <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
+        <input type="checkbox" x-model="radarHideUnfit" class="w-3.5 h-3.5 rounded text-indigo-600">
+        Unpassende ausblenden
+      </label>
       <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
         <input type="checkbox" x-model="radarHideExpired" class="w-3.5 h-3.5 rounded text-indigo-600">
         Abgelaufene ausblenden
@@ -773,13 +777,19 @@ body{font-feature-settings:'cv11','ss01';letter-spacing:-0.006em}
       <button @click="radarHideExpired=false" class="ml-auto text-indigo-600 hover:underline font-medium">Trotzdem anzeigen</button>
     </div>
   </template>
+  <template x-if="radarHideUnfit && radarUnfitCount>0">
+    <div class="flex items-center gap-2 text-xs text-gray-500 bg-red-50/50 border border-red-100 rounded-xl px-4 py-2.5 mb-3">
+      <span><b x-text="radarUnfitCount"></b> als „passt nicht zum Portfolio" vorgefiltert (Ausschluss-Begriffe im Profil pflegbar).</span>
+      <button @click="radarHideUnfit=false" class="ml-auto text-indigo-600 hover:underline font-medium">Trotzdem anzeigen</button>
+    </div>
+  </template>
   <template x-if="!loading && radarVisible.length===0"><div class="bg-white rounded-2xl border border-gray-100 p-12 text-center shadow-sm"><div class="text-4xl mb-3">🔍</div><p class="text-sm font-semibold text-gray-600">Keine offenen Treffer</p><p class="text-xs text-gray-400 mt-1">Starte einen Scan oder prüfe die Profil-Keywords</p></div></template>
   <div class="space-y-3">
     <template x-for="r in radarVisible" :key="r.id">
       <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <div class="flex items-start gap-4">
           <div class="w-14 h-14 rounded-xl border-2 flex flex-col items-center justify-center flex-shrink-0" :class="matchBorder(r.match_score)"><span class="text-base font-bold" :class="matchTextC(r.match_score)" x-text="(r.match_score??'?')+(r.match_score!=null?'%':'')"></span><span class="text-[10px] text-gray-400">Match</span></div>
-          <div class="flex-1 min-w-0"><div class="flex items-center gap-2"><span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold flex-shrink-0" :class="r.source==='bund'?'bg-violet-100 text-violet-700':'bg-blue-100 text-blue-700'" x-text="r.source==='bund'?'BUND':'EU/TED'"></span><h4 class="text-sm font-bold text-gray-900 line-clamp-2" x-text="r.title||'—'"></h4>
+          <div class="flex-1 min-w-0"><div class="flex items-center gap-2 flex-wrap"><span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold flex-shrink-0" :class="relevanceBadge(r).cls" x-text="relevanceBadge(r).label" :title="tenderRelevance(r).reason"></span><span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold flex-shrink-0" :class="r.source==='bund'?'bg-violet-100 text-violet-700':'bg-blue-100 text-blue-700'" x-text="r.source==='bund'?'BUND':'EU/TED'"></span><h4 class="text-sm font-bold text-gray-900 line-clamp-2" x-text="r.title||'—'"></h4>
             <template x-if="r.ai"><span class="text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0" :class="r.ai.empfehlung==='go'?'bg-emerald-100 text-emerald-700':r.ai.empfehlung==='no-go'?'bg-red-100 text-red-600':'bg-amber-100 text-amber-700'" x-text="'KI '+r.ai.score+'% · '+(r.ai.empfehlung||'').toUpperCase()"></span></template></div>
             <p class="text-xs text-gray-400 mt-0.5" x-text="r.contracting_authority||r.vergabestelle||''"></p>
             <div class="flex items-center gap-3 mt-1">
@@ -1487,6 +1497,19 @@ body{font-feature-settings:'cv11','ss01';letter-spacing:-0.006em}
         <input x-model="nReg" @keydown.enter="if(nReg.trim()){profile.regions.push(nReg.trim());nReg=''}" placeholder="z.B. Schweiz + Enter…" class="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></div>
     </div>
     <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+      <h4 class="text-sm font-bold text-gray-700 mb-1">Ausschluss-Begriffe <span class="text-xs font-normal text-gray-400">(Relevanz-Screening)</span></h4>
+      <p class="text-xs text-gray-400 mb-3">Ausschreibungen, deren Titel/Beschreibung einen dieser Begriffe enthält, werden im Radar als <b class="text-red-600">„passt nicht"</b> markiert und vorgefiltert — z.B. Arbeitnehmerüberlassung, Pflege, Baustoffe.</p>
+      <div class="flex flex-wrap gap-1.5 mb-2">
+        <template x-for="(k,i) in (profile.exclude_keywords||[])" :key="i">
+          <span class="inline-flex items-center gap-1 bg-red-50 border border-red-100 text-red-600 px-2 py-0.5 rounded-full text-xs"><span x-text="k"></span><button @click="profile.exclude_keywords.splice(i,1)" class="text-red-300 hover:text-red-600 font-bold">✕</button></span>
+        </template>
+      </div>
+      <div class="flex gap-2">
+        <input x-model="nExcl" @keydown.enter="if(nExcl.trim()){if(!profile.exclude_keywords)profile.exclude_keywords=[];profile.exclude_keywords.push(nExcl.trim().toLowerCase());nExcl=''}" placeholder="Begriff ausschließen + Enter…" class="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <button @click="if(nExcl.trim()){if(!profile.exclude_keywords)profile.exclude_keywords=[];profile.exclude_keywords.push(nExcl.trim().toLowerCase());nExcl=''}" class="bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-red-600 whitespace-nowrap">+ Ausschluss</button>
+      </div>
+    </div>
+    <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
       <h4 class="text-sm font-bold text-gray-700 mb-1">CPV-Leistungsbereiche <span class="text-xs font-normal text-gray-400">(für TED-Radar)</span></h4>
       <p class="text-xs text-gray-400 mb-4">Aktive Bereiche werden beim Radar-Scan als CPV-Codes übermittelt. Codes pro Bereich frei bearbeiten — Änderungen mit „Speichern" oben sichern.</p>
       <div class="space-y-3">
@@ -1653,6 +1676,10 @@ function BidOS(){
   ];
   // Breite IT-Abdeckung: CPV-Hauptgruppen, fangen "egal welche IT-Sache" ab (Hardware, Software, IT-Dienste, Netzwerk, Telekom, Installation, Wartung)
   const ALL_IT_CPV=['30200000','48000000','72000000','32400000','32500000','51600000','50300000','50310000','50320000','72600000','30230000','48800000','32420000','32570000'];
+  // Relevanz-Screening: Begriffe, die klar NICHT zum enthus-Portfolio gehören (Default, im Profil editierbar)
+  const EXCLUDE_DEFAULT=['arbeitnehmerüberlassung','personalgestellung','personaldienstleist','zeitarbeit','pflege','pfleger','pflegekraft','pflegedienst','heilberuf','heilberufsausweis','arztausweis','baustoff','bauüberwachung','bauleitung','tiefbau','hochbau','straßenbau','abbruch','dachdecker','kontrollprüf','baugrundunters','laboruntersuch','probenahme','reinigung','catering','verpflegung','bewachung','sicherheitsdienst','wachdienst','winterdienst','grünpflege','gartenbau','entsorgung','abfall','möblier','dienstkleidung','dolmetsch','übersetzungsleist','umzug','beschilderung'];
+  // Positive IT-Signale (enthus-typisch) für die Relevanz-Einstufung
+  const IT_POSITIVE=['server','storage','speicher','netzwerk','firewall','rechenzentrum','datacenter','cloud','backup','virtualisier','vmware','hyper-v','microsoft','windows','linux','client','notebook','laptop','workplace','arbeitsplatzrechner','software','lizenz','licen','sap','datenbank','it-dienst','it-service','it-betrieb','managed service','itsm','it-sicherheit','informationssicherheit','isms','siem','endpoint','m365','office 365','wlan','switch','router',' san ',' nas ','hardware','edv','digitalisierung','schnittstelle','it-infrastruktur','serverlandschaft','speichersystem','telekommunikation','glasfaser'];
   return {
     STAGES, CPV_CATS, view:'dashboard', tab:'overview', online:false, loading:false, toast:'', toastErr:false,
     n8n: localStorage.getItem('bidos_n8n')||'https://stage.automate.enthus.de',
@@ -1690,7 +1717,8 @@ function BidOS(){
     rvTab:'contracts', rvBundeslandRadar:[], rvBundeslandRadarLoading:false, radarHideExpired:true, radarBroadIT:true, radarHorizon:'', rvRadarHorizon:'', trackingMode:'quarter', cpvNewCode:{},
     accountPlanData:[], accountPlanLoading:false, accountPlanFilter:{search:'',bundesland:'',only_with_wins:false,only_new_tenders:false},
     bk:[], bkLoading:false, bkFilter:{search:'',bundesland:'',org_typ:'',hpe_only:false,prio_only:false}, bkDetail:null,
-    profile:{name:'',description:'',team_size:'',services:[],keywords:[],regions:[],cpv_categories:['datacenter_server_storage','network_connectivity','modern_workplace_clients','security_isms_defenderbox','backup_bcm_dpis','itsm_asset_documentation','managed_services_cloud']},
+    profile:{name:'',description:'',team_size:'',services:[],keywords:[],regions:[],cpv_categories:['datacenter_server_storage','network_connectivity','modern_workplace_clients','security_isms_defenderbox','backup_bcm_dpis','itsm_asset_documentation','managed_services_cloud'],exclude_keywords:[...EXCLUDE_DEFAULT]},
+    radarHideUnfit:true, nExcl:'',
     notifyCfg:{webhook_url:'',channel_type:'slack'}, digestText:'',
     search:'', filterStage:'', curId:null,
     bidModal:false, editId:null, form:{},
@@ -1783,7 +1811,9 @@ function BidOS(){
     async loadMetrics(){const r=await this.req('GET','/pipeline/metrics');if(r.success)this.m=r.metrics||{};},
     async loadClients(){const r=await this.req('GET','/clients');if(r.success)this.clients=r.clients||[];},
     async loadRadar(){const r=await this.req('GET','/radar');if(r&&r.success){const cache=JSON.parse(localStorage.getItem('bidos_radar_ai')||'{}');this.radar=(r.tenders||r.radar||[]).map(t=>cache[t.id]?{...t,ai:cache[t.id]}:t);}},
-    async loadProfile(){const r=await this.req('GET','/profile');if(r&&r.success&&r.profile)this.profile={services:[],keywords:[],regions:[],cpv_categories:CPV_CATS.map(c=>c.key),...r.profile};},
+    async loadProfile(){const r=await this.req('GET','/profile');if(r&&r.success&&r.profile)this.profile={services:[],keywords:[],regions:[],cpv_categories:CPV_CATS.map(c=>c.key),exclude_keywords:[...EXCLUDE_DEFAULT],...r.profile};if(!this.profile.exclude_keywords||!this.profile.exclude_keywords.length)this.profile.exclude_keywords=[...EXCLUDE_DEFAULT];},
+    tenderRelevance(t){const txt=((t.title||'')+' '+(t.description||t.full_text||'')+' '+((t.cpv_codes||[]).join(' '))).toLowerCase();const excl=(this.profile.exclude_keywords&&this.profile.exclude_keywords.length)?this.profile.exclude_keywords:EXCLUDE_DEFAULT;const neg=excl.find(k=>k&&txt.includes(String(k).toLowerCase()));if(neg)return{v:'unfit',reason:'enthält „'+neg+'"'};const pos=[...IT_POSITIVE,...(this.profile.keywords||[]),...(this.profile.services||[])].find(k=>k&&String(k).length>2&&txt.includes(String(k).toLowerCase()));if(pos)return{v:'fit',reason:'IT-Bezug: „'+String(pos).trim()+'"'};return{v:'maybe',reason:'kein klares IT-Signal'};},
+    relevanceBadge(t){const v=this.tenderRelevance(t).v;return{fit:{label:'✓ Passt',cls:'bg-emerald-100 text-emerald-700'},maybe:{label:'? Prüfen',cls:'bg-amber-100 text-amber-700'},unfit:{label:'✕ Passt nicht',cls:'bg-red-100 text-red-600'}}[v];},
     async loadDocs(){const r=await this.req('GET','/doc-pool');if(r&&r.success)this.docpool=r.docs||[];},
     get docpoolSorted(){
       let list=this.docpool;
@@ -1831,8 +1861,9 @@ function BidOS(){
     tenderUrl(t){if(!t)return 'https://ted.europa.eu/de/';if(t.url)return t.url;if(t.source_url)return t.source_url;const q=encodeURIComponent([t.title,t.buyer||t.authority||t.contracting_authority].filter(Boolean).join(' '));return q?('https://ted.europa.eu/de/search/result?text='+q):'https://ted.europa.eu/de/';},
     tenderHasDirectUrl(t){return !!(t&&(t.url||t.source_url));},
     radarHorizonDays(){return {'3m':92,'6m':183,'1y':366,'3y':1096}[this.radarHorizon]||null;},
-    get radarVisible(){let list=this.radar.filter(x=>x.status!=='dismissed');if(this.radarHideExpired)list=list.filter(x=>!this.tenderIsExpired(x));const max=this.radarHorizonDays();if(max!=null)list=list.filter(x=>{const dl=x.submission_deadline||x.deadline;if(!dl)return false;const d=this.daysUntil(dl);return d!==null&&d>=0&&d<=max;});return list;},
+    get radarVisible(){let list=this.radar.filter(x=>x.status!=='dismissed');if(this.radarHideExpired)list=list.filter(x=>!this.tenderIsExpired(x));if(this.radarHideUnfit)list=list.filter(x=>this.tenderRelevance(x).v!=='unfit');const max=this.radarHorizonDays();if(max!=null)list=list.filter(x=>{const dl=x.submission_deadline||x.deadline;if(!dl)return false;const d=this.daysUntil(dl);return d!==null&&d>=0&&d<=max;});return list;},
     get radarExpiredCount(){return this.radar.filter(x=>x.status!=='dismissed'&&this.tenderIsExpired(x)).length;},
+    get radarUnfitCount(){return this.radar.filter(x=>x.status!=='dismissed'&&!(this.radarHideExpired&&this.tenderIsExpired(x))&&this.tenderRelevance(x).v==='unfit').length;},
     radarHorizonCount(h){const max={'3m':92,'6m':183,'1y':366,'3y':1096}[h];let list=this.radar.filter(x=>x.status!=='dismissed'&&!this.tenderIsExpired(x));if(max==null)return list.length;return list.filter(x=>{const dl=x.submission_deadline||x.deadline;if(!dl)return false;const d=this.daysUntil(dl);return d!==null&&d>=0&&d<=max;}).length;},
     catCodes(cat){const c=this.profile&&this.profile.cpv_codes_custom;return (c&&Array.isArray(c[cat.key]))?c[cat.key]:cat.codes;},
     addCpvCode(cat){let v=(this.cpvNewCode[cat.key]||'').trim();if(!v)return;if(!this.profile.cpv_codes_custom)this.profile.cpv_codes_custom={};const cur=this.catCodes(cat).slice();if(!cur.includes(v))cur.push(v);this.profile.cpv_codes_custom[cat.key]=cur;this.cpvNewCode[cat.key]='';},
