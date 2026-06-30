@@ -777,6 +777,49 @@ body{font-feature-settings:'cv11','ss01';letter-spacing:-0.006em}
       </div>
     </div>
 
+    <!-- Strategie-Berater -->
+    <div x-show="tab==='berater'" class="space-y-4">
+      <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+        <div class="flex items-start gap-3 mb-3">
+          <div class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0 text-lg">🧠</div>
+          <div>
+            <h4 class="text-sm font-bold text-gray-900">Strategie-Berater</h4>
+            <p class="text-xs text-gray-500 mt-0.5 max-w-xl">Ehrlicher Bid-/Sales-Sparringspartner für diese Ausschreibung — Chancen, Bid/No-Bid, Lose-Strategie, Wettbewerb. Kennt den Kontext: Anforderungen, Volumen, Match & euer Profil.</p>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-2 mb-3">
+          <template x-for="vf in ['Sollen wir auf diese Ausschreibung bieten?','Wie realistisch sind unsere Chancen?','Lohnt es sich, die Lose aufzubrechen?','Brauchen wir eine Bietergemeinschaft / Partner?','Wer ist hier vermutlich Incumbent und wie schlagen wir ihn?']" :key="vf">
+            <button @click="runBerater(cur,vf)" :disabled="beraterLoading" class="text-xs px-3 py-1.5 rounded-full border border-indigo-200 bg-indigo-50 text-indigo-700 font-medium hover:bg-indigo-100 disabled:opacity-50" x-text="vf"></button>
+          </template>
+        </div>
+        <div class="flex gap-2">
+          <input x-model="beraterFrage" @keydown.enter="runBerater(cur)" :disabled="beraterLoading" placeholder="Eigene Frage stellen…" class="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <button @click="runBerater(cur)" :disabled="beraterLoading" class="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50">
+            <svg x-show="beraterLoading" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+            <span x-text="beraterLoading?'Denkt…':'Fragen'"></span>
+          </button>
+        </div>
+        <p class="text-[10px] text-gray-400 mt-2">⚠️ KI-Einschätzung als Sparring — keine Garantie. Die finale Entscheidung trefft ihr.</p>
+      </div>
+
+      <template x-if="!cur._beraterThread || !cur._beraterThread.length">
+        <div class="border-2 border-dashed border-gray-200 rounded-2xl p-10 text-center"><div class="text-3xl mb-2">🧠</div><p class="text-sm font-semibold text-gray-600">Stell deine erste Frage</p><p class="text-xs text-gray-400 mt-1">Tippe oben eine Vorschlagsfrage an oder formuliere eine eigene</p></div>
+      </template>
+
+      <template x-for="(t,i) in (cur._beraterThread||[])" :key="i">
+        <div class="space-y-2">
+          <div class="flex justify-end"><div class="bg-indigo-600 text-white text-sm rounded-2xl rounded-br-sm px-4 py-2 max-w-[80%]" x-text="t.frage"></div></div>
+          <div class="bg-white border border-gray-100 rounded-2xl rounded-bl-sm p-4 shadow-sm">
+            <div class="flex items-center gap-2 mb-2 flex-wrap">
+              <span class="text-xs px-2 py-0.5 rounded-full font-bold" :class="beraterTendenz(t.beratung.tendenz).cls" x-text="beraterTendenz(t.beratung.tendenz).label"></span>
+              <span class="text-xs font-semibold text-gray-700" x-text="t.beratung.kurzfazit"></span>
+            </div>
+            <div class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap" x-text="t.beratung.antwort"></div>
+          </div>
+        </div>
+      </template>
+    </div>
+
     <!-- Compliance -->
     <div x-show="tab==='compliance'">
       <div class="card p-5">
@@ -1896,8 +1939,9 @@ function BidOS(){
       {id:'rahmenvertraege',label:'Rahmenverträge',icon:'M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z'},
       {id:'profile',label:'Unternehmensprofil',icon:'M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z'},
     ],
-    detailTabs:[{id:'overview',label:'Übersicht'},{id:'decision',label:'GO/NO-GO ✨'},{id:'criteria',label:'Anforderungen'},{id:'docs',label:'Einzureichen'},{id:'vergabe',label:'Vergaberecht ⚖️'},{id:'compliance',label:'Compliance'},{id:'tasks',label:'Aufgaben'},{id:'concept',label:'Konzept ✨'},{id:'activity',label:'Verlauf'}],
+    detailTabs:[{id:'overview',label:'Übersicht'},{id:'decision',label:'GO/NO-GO ✨'},{id:'criteria',label:'Anforderungen'},{id:'docs',label:'Einzureichen'},{id:'vergabe',label:'Vergaberecht ⚖️'},{id:'berater',label:'Strategie-Berater 🧠'},{id:'compliance',label:'Compliance'},{id:'tasks',label:'Aufgaben'},{id:'concept',label:'Konzept ✨'},{id:'activity',label:'Verlauf'}],
     vergabeLoading:false, absageLoading:false, absageForm:{text:'',uebermittlung:'elektronisch',versand:''},
+    beraterLoading:false, beraterFrage:'',
     bids:[], clients:[], m:{}, radar:[], docpool:[], decisions:{}, docUploading:false, docUpName:'', validityLoading:false,
     matchLoading:false, showWeights:false, factorInfo:null, docSearch:'', docSort:'name',
     decForm:{entscheidung:'',begruendung:''}, decSaving:false, bidDecisions:[],
@@ -2338,6 +2382,20 @@ function BidOS(){
       if(r&&r.success&&r.analyse)b._vergabe=r.analyse;
       else this.notify((r&&r.error&&r.error.message)||'Vergaberecht-Analyse fehlgeschlagen',true);
     },
+    async runBerater(b,frage){
+      const q=(frage||this.beraterFrage||'').trim();
+      if(!q){this.notify('Bitte eine Frage eingeben',true);return;}
+      this.beraterLoading=true;
+      if(!b._beraterThread)b._beraterThread=[];
+      const cats=(typeof CPV_CATS!=='undefined')?CPV_CATS.filter(c=>(this.profile.cpv_categories||[]).includes(c.key)).map(c=>c.label):[];
+      const profil='enthus — IT-Systemhaus. Leistungen: '+((this.profile.services||[]).join(', ')||'IT-Infrastruktur')+'. Aktive Bereiche: '+(cats.join(', ')||'—')+'. Regionen: '+((this.profile.regions||[]).join(', ')||'DACH')+'.';
+      const verlauf=b._beraterThread.map(t=>({frage:t.frage,kurzfazit:t.beratung.kurzfazit}));
+      const r=await this.req('POST','/bid-berater',{bid_id:b.id,frage:q,profil,verlauf});
+      this.beraterLoading=false;
+      if(r&&r.success&&r.beratung){b._beraterThread.push({frage:q,beratung:r.beratung});this.beraterFrage='';}
+      else this.notify((r&&r.error&&r.error.message)||'Berater nicht erreichbar',true);
+    },
+    beraterTendenz(t){return{bieten:{label:'✓ Bieten',cls:'bg-emerald-100 text-emerald-700'},abwaegen:{label:'⚖ Abwägen',cls:'bg-amber-100 text-amber-700'},nicht_bieten:{label:'✕ Nicht bieten',cls:'bg-red-100 text-red-600'},neutral:{label:'Hinweis',cls:'bg-gray-100 text-gray-500'}}[t]||{label:'Hinweis',cls:'bg-gray-100 text-gray-500'};},
     async runAbsageAnalyse(b){
       if(!this.absageForm.text.trim()){this.notify('Bitte den Text des Absageschreibens einfügen',true);return;}
       this.absageLoading=true;
