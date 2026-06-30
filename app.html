@@ -720,6 +720,16 @@ body{font-feature-settings:'cv11','ss01';letter-spacing:-0.006em}
       <button @click="scanRadar()" :disabled="scanning" class="flex items-center gap-1.5 text-xs px-3 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 disabled:opacity-50">
         <svg x-show="scanning" class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
         <span x-text="scanning?'Scanne TED…':'🔄 Jetzt scannen'"></span></button></div></div>
+  <!-- Zeithorizont-Filter -->
+  <div class="flex flex-wrap items-center gap-2 mb-3">
+    <span class="text-xs font-semibold text-gray-400 mr-1">Frist:</span>
+    <template x-for="opt in [{k:'',l:'Alle'},{k:'3m',l:'≤ 3 Monate'},{k:'6m',l:'≤ 6 Monate'},{k:'1y',l:'≤ 1 Jahr'},{k:'3y',l:'≤ 3 Jahre'}]" :key="opt.k">
+      <button @click="radarHorizon=opt.k" class="text-xs px-3 py-1.5 rounded-full border font-semibold transition" :class="radarHorizon===opt.k?'border-indigo-400 bg-indigo-50 text-indigo-700':'border-gray-200 text-gray-500 hover:bg-gray-50'">
+        <span x-text="opt.l"></span>
+        <span class="ml-1 opacity-60" x-text="'('+radarHorizonCount(opt.k)+')'"></span>
+      </button>
+    </template>
+  </div>
   <template x-if="radarHideExpired && radarExpiredCount>0">
     <div class="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 mb-3">
       <span><b x-text="radarExpiredCount"></b> abgelaufene/vergebene Ausschreibungen ausgeblendet.</span>
@@ -1614,7 +1624,7 @@ function BidOS(){
     MW_LABELS:{fachlich:'Fachliche Passung',nachweise:'Zertifikate & Nachweise',referenzen:'Referenzen',rahmenvertrag:'Rahmenvertrags-Bezug',historie:'Erfahrung mit Vergabestelle',wirtschaftlich:'Wirtschaftl. Potenzial',frist:'Frist & Bearbeitbarkeit',compliance:'Compliance-Sicherheit',lieferrisiko:'Liefersicherheit',strategie:'Strategischer Fit'},
     matchWeights:(()=>{try{const w=JSON.parse(localStorage.getItem('bidos_match_weights'));if(w&&typeof w==='object')return w;}catch(e){}return{fachlich:3,nachweise:3,referenzen:2,rahmenvertrag:2,historie:2,wirtschaftlich:2,frist:2,compliance:2,lieferrisiko:1,strategie:1};})(),
     rv:[], rvLoading:false, rvFilter:{status:'',kategorie:'',bundesland:'',relevant_only:true,search:'',auslauf:''}, rvDetail:null,
-    rvTab:'contracts', rvBundeslandRadar:[], rvBundeslandRadarLoading:false, radarHideExpired:true, radarBroadIT:true,
+    rvTab:'contracts', rvBundeslandRadar:[], rvBundeslandRadarLoading:false, radarHideExpired:true, radarBroadIT:true, radarHorizon:'',
     accountPlanData:[], accountPlanLoading:false, accountPlanFilter:{search:'',bundesland:'',only_with_wins:false,only_new_tenders:false},
     bk:[], bkLoading:false, bkFilter:{search:'',bundesland:'',org_typ:'',hpe_only:false,prio_only:false}, bkDetail:null,
     profile:{name:'',description:'',team_size:'',services:[],keywords:[],regions:[],cpv_categories:['datacenter_server_storage','network_connectivity','modern_workplace_clients','security_isms_defenderbox','backup_bcm_dpis','itsm_asset_documentation','managed_services_cloud']},
@@ -1757,8 +1767,10 @@ function BidOS(){
     tenderIsExpired(t){if(!t)return false;const dl=t.deadline||t.submission_deadline;if(!dl)return false;const d=this.daysUntil(dl);return d!==null&&d<0;},
     tenderUrl(t){if(!t)return 'https://ted.europa.eu/de/';if(t.url)return t.url;if(t.source_url)return t.source_url;const q=encodeURIComponent([t.title,t.buyer||t.authority||t.contracting_authority].filter(Boolean).join(' '));return q?('https://ted.europa.eu/de/search/result?text='+q):'https://ted.europa.eu/de/';},
     tenderHasDirectUrl(t){return !!(t&&(t.url||t.source_url));},
-    get radarVisible(){let list=this.radar.filter(x=>x.status!=='dismissed');if(this.radarHideExpired)list=list.filter(x=>!this.tenderIsExpired(x));return list;},
+    radarHorizonDays(){return {'3m':92,'6m':183,'1y':366,'3y':1096}[this.radarHorizon]||null;},
+    get radarVisible(){let list=this.radar.filter(x=>x.status!=='dismissed');if(this.radarHideExpired)list=list.filter(x=>!this.tenderIsExpired(x));const max=this.radarHorizonDays();if(max!=null)list=list.filter(x=>{const dl=x.submission_deadline||x.deadline;if(!dl)return false;const d=this.daysUntil(dl);return d!==null&&d>=0&&d<=max;});return list;},
     get radarExpiredCount(){return this.radar.filter(x=>x.status!=='dismissed'&&this.tenderIsExpired(x)).length;},
+    radarHorizonCount(h){const max={'3m':92,'6m':183,'1y':366,'3y':1096}[h];let list=this.radar.filter(x=>x.status!=='dismissed'&&!this.tenderIsExpired(x));if(max==null)return list.length;return list.filter(x=>{const dl=x.submission_deadline||x.deadline;if(!dl)return false;const d=this.daysUntil(dl);return d!==null&&d>=0&&d<=max;}).length;},
     get rvRadarExpiredCount(){return this.rvBundeslandRadar.filter(t=>this.tenderIsExpired(t)).length;},
     get rvRadarGrouped(){
       const map={};
