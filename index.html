@@ -1480,22 +1480,40 @@ body{font-feature-settings:'cv11','ss01';letter-spacing:-0.006em}
     </div>
     <div class="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
       <h4 class="text-sm font-bold text-gray-700 mb-1">CPV-Leistungsbereiche <span class="text-xs font-normal text-gray-400">(für TED-Radar)</span></h4>
-      <p class="text-xs text-gray-400 mb-4">Aktive Bereiche werden beim Radar-Scan als CPV-Codes an TED übermittelt. Deaktiviere Bereiche, die nicht zu euch passen.</p>
-      <div class="space-y-2">
+      <p class="text-xs text-gray-400 mb-4">Aktive Bereiche werden beim Radar-Scan als CPV-Codes übermittelt. Codes pro Bereich frei bearbeiten — Änderungen mit „Speichern" oben sichern.</p>
+      <div class="space-y-3">
         <template x-for="cat in CPV_CATS" :key="cat.key">
-          <button @click="profile.cpv_categories=(profile.cpv_categories||[]).includes(cat.key)?(profile.cpv_categories||[]).filter(k=>k!==cat.key):[...(profile.cpv_categories||[]),cat.key]" class="w-full text-left flex items-center justify-between gap-3 px-4 py-3 rounded-xl border transition-all" :class="(profile.cpv_categories||[]).includes(cat.key)?'border-indigo-300 bg-indigo-50':'border-gray-100 bg-white opacity-60'">
-            <div>
-              <div class="text-sm font-semibold" :class="(profile.cpv_categories||[]).includes(cat.key)?'text-indigo-800':'text-gray-500'" x-text="cat.label"></div>
-              <div class="text-xs text-gray-400 mt-0.5" x-text="cat.codes.length+' CPV-Codes'"></div>
+          <div class="rounded-xl border transition-all" :class="(profile.cpv_categories||[]).includes(cat.key)?'border-indigo-300 bg-indigo-50/40':'border-gray-100 bg-white'">
+            <div class="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer" @click="profile.cpv_categories=(profile.cpv_categories||[]).includes(cat.key)?(profile.cpv_categories||[]).filter(k=>k!==cat.key):[...(profile.cpv_categories||[]),cat.key]">
+              <div>
+                <div class="text-sm font-semibold" :class="(profile.cpv_categories||[]).includes(cat.key)?'text-indigo-800':'text-gray-500'" x-text="cat.label"></div>
+                <div class="text-xs text-gray-400 mt-0.5" x-text="catCodes(cat).length+' CPV-Codes'"></div>
+              </div>
+              <div class="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center" :class="(profile.cpv_categories||[]).includes(cat.key)?'border-indigo-500 bg-indigo-500':'border-gray-300'">
+                <svg x-show="(profile.cpv_categories||[]).includes(cat.key)" class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+              </div>
             </div>
-            <div class="w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center" :class="(profile.cpv_categories||[]).includes(cat.key)?'border-indigo-500 bg-indigo-500':'border-gray-300'">
-              <svg x-show="(profile.cpv_categories||[]).includes(cat.key)" class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+            <div class="px-4 pb-3 pt-1 border-t border-gray-100/70">
+              <div class="flex flex-wrap gap-1.5 mb-2">
+                <template x-for="code in catCodes(cat)" :key="code">
+                  <span class="inline-flex items-center gap-1 bg-white border border-gray-200 text-gray-600 px-2 py-0.5 rounded-full text-xs font-mono">
+                    <span x-text="code"></span>
+                    <button @click.stop="removeCpvCode(cat,code)" class="text-gray-300 hover:text-red-500 font-bold">✕</button>
+                  </span>
+                </template>
+                <template x-if="catCodes(cat).length===0"><span class="text-xs text-gray-300 italic">keine Codes</span></template>
+              </div>
+              <div class="flex gap-2">
+                <input x-model="cpvNewCode[cat.key]" @keydown.enter.stop="addCpvCode(cat)" @click.stop placeholder="CPV-Code, z.B. 72500000-0" class="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-indigo-400">
+                <button @click.stop="addCpvCode(cat)" class="text-xs px-3 py-1.5 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 whitespace-nowrap">+ Code</button>
+                <button @click.stop="resetCpvCodes(cat)" class="text-xs px-2 py-1.5 border border-gray-200 text-gray-400 rounded-lg hover:bg-gray-50" title="Auf Standard zurücksetzen">↺</button>
+              </div>
             </div>
-          </button>
+          </div>
         </template>
       </div>
       <div class="mt-3 flex justify-between items-center">
-        <span class="text-xs text-gray-400" x-text="(profile.cpv_categories||[]).length+' von '+CPV_CATS.length+' Bereichen aktiv · '+CPV_CATS.filter(c=>(profile.cpv_categories||[]).includes(c.key)).flatMap(c=>c.codes).length+' Codes'"></span>
+        <span class="text-xs text-gray-400" x-text="(profile.cpv_categories||[]).length+' von '+CPV_CATS.length+' Bereichen aktiv · '+CPV_CATS.filter(c=>(profile.cpv_categories||[]).includes(c.key)).flatMap(c=>catCodes(c)).length+' Codes'"></span>
         <div class="flex gap-2">
           <button @click="profile.cpv_categories=CPV_CATS.map(c=>c.key)" class="text-xs text-indigo-600 hover:underline">Alle aktiv</button>
           <span class="text-xs text-gray-300">·</span>
@@ -1661,7 +1679,7 @@ function BidOS(){
     MW_LABELS:{fachlich:'Fachliche Passung',nachweise:'Zertifikate & Nachweise',referenzen:'Referenzen',rahmenvertrag:'Rahmenvertrags-Bezug',historie:'Erfahrung mit Vergabestelle',wirtschaftlich:'Wirtschaftl. Potenzial',frist:'Frist & Bearbeitbarkeit',compliance:'Compliance-Sicherheit',lieferrisiko:'Liefersicherheit',strategie:'Strategischer Fit'},
     matchWeights:(()=>{try{const w=JSON.parse(localStorage.getItem('bidos_match_weights'));if(w&&typeof w==='object')return w;}catch(e){}return{fachlich:3,nachweise:3,referenzen:2,rahmenvertrag:2,historie:2,wirtschaftlich:2,frist:2,compliance:2,lieferrisiko:1,strategie:1};})(),
     rv:[], rvLoading:false, rvFilter:{status:'',kategorie:'',bundesland:'',relevant_only:true,search:'',auslauf:''}, rvDetail:null,
-    rvTab:'contracts', rvBundeslandRadar:[], rvBundeslandRadarLoading:false, radarHideExpired:true, radarBroadIT:true, radarHorizon:'', trackingMode:'quarter',
+    rvTab:'contracts', rvBundeslandRadar:[], rvBundeslandRadarLoading:false, radarHideExpired:true, radarBroadIT:true, radarHorizon:'', trackingMode:'quarter', cpvNewCode:{},
     accountPlanData:[], accountPlanLoading:false, accountPlanFilter:{search:'',bundesland:'',only_with_wins:false,only_new_tenders:false},
     bk:[], bkLoading:false, bkFilter:{search:'',bundesland:'',org_typ:'',hpe_only:false,prio_only:false}, bkDetail:null,
     profile:{name:'',description:'',team_size:'',services:[],keywords:[],regions:[],cpv_categories:['datacenter_server_storage','network_connectivity','modern_workplace_clients','security_isms_defenderbox','backup_bcm_dpis','itsm_asset_documentation','managed_services_cloud']},
@@ -1808,6 +1826,10 @@ function BidOS(){
     get radarVisible(){let list=this.radar.filter(x=>x.status!=='dismissed');if(this.radarHideExpired)list=list.filter(x=>!this.tenderIsExpired(x));const max=this.radarHorizonDays();if(max!=null)list=list.filter(x=>{const dl=x.submission_deadline||x.deadline;if(!dl)return false;const d=this.daysUntil(dl);return d!==null&&d>=0&&d<=max;});return list;},
     get radarExpiredCount(){return this.radar.filter(x=>x.status!=='dismissed'&&this.tenderIsExpired(x)).length;},
     radarHorizonCount(h){const max={'3m':92,'6m':183,'1y':366,'3y':1096}[h];let list=this.radar.filter(x=>x.status!=='dismissed'&&!this.tenderIsExpired(x));if(max==null)return list.length;return list.filter(x=>{const dl=x.submission_deadline||x.deadline;if(!dl)return false;const d=this.daysUntil(dl);return d!==null&&d>=0&&d<=max;}).length;},
+    catCodes(cat){const c=this.profile&&this.profile.cpv_codes_custom;return (c&&Array.isArray(c[cat.key]))?c[cat.key]:cat.codes;},
+    addCpvCode(cat){let v=(this.cpvNewCode[cat.key]||'').trim();if(!v)return;if(!this.profile.cpv_codes_custom)this.profile.cpv_codes_custom={};const cur=this.catCodes(cat).slice();if(!cur.includes(v))cur.push(v);this.profile.cpv_codes_custom[cat.key]=cur;this.cpvNewCode[cat.key]='';},
+    removeCpvCode(cat,code){if(!this.profile.cpv_codes_custom)this.profile.cpv_codes_custom={};this.profile.cpv_codes_custom[cat.key]=this.catCodes(cat).filter(c=>c!==code);},
+    resetCpvCodes(cat){if(!this.profile.cpv_codes_custom)this.profile.cpv_codes_custom={};this.profile.cpv_codes_custom[cat.key]=cat.codes.slice();},
     bidOutcomeDate(b){return (b.updated_at||b.deadline||b.created_at||'');},
     get winTracking(){
       const mode=this.trackingMode;const buckets={};
@@ -1836,7 +1858,7 @@ function BidOS(){
       this.rvBundeslandRadarLoading=true;
       let cpvCodes;
       if(this.radarBroadIT){cpvCodes=ALL_IT_CPV;}
-      else{const activeCats=CPV_CATS.filter(c=>(this.profile.cpv_categories||[]).includes(c.key));cpvCodes=activeCats.flatMap(c=>c.codes.map(code=>code.replace(/-\d$/,'')));}
+      else{const activeCats=CPV_CATS.filter(c=>(this.profile.cpv_categories||[]).includes(c.key));cpvCodes=activeCats.flatMap(c=>this.catCodes(c).map(code=>code.replace(/-\d$/,'')));}
       const nutsCodes=['DE1','DE2','DE3','DE4','DE5','DE6','DE7','DE8','DE9','DEA','DEB','DEC','DED','DEE','DEF','DEG'];
       const r=await this.req('POST','/radar-scan-rv',{nuts_codes:nutsCodes,cpv_codes:cpvCodes});
       this.rvBundeslandRadarLoading=false;
@@ -2135,7 +2157,7 @@ function BidOS(){
     async dismissRadar(id){this.radar=this.radar.map(r=>r.id===id?{...r,status:'dismissed'}:r);await this.req('POST','/radar-dismiss',{id});},
     async scanRadar(){this.scanning=true;
       const activeCats=CPV_CATS.filter(c=>(this.profile.cpv_categories||[]).includes(c.key));
-      const cpv_codes=activeCats.flatMap(c=>c.codes).map(c=>c.split('-')[0]);
+      const cpv_codes=activeCats.flatMap(c=>this.catCodes(c)).map(c=>c.split('-')[0]);
       const r=await this.req('POST','/radar-scan',{keywords:this.profile.keywords||[],services:this.profile.services||[],cpv_codes,days:45,limit:40});
       if(r&&r.fetched!=null){await this.loadRadar();this.notify(r.added+' neue Treffer von TED');this.scanning=false;this.aiScoreRadar();}else{this.notify('Scan fehlgeschlagen',true);this.scanning=false;}},
     // (c) KI-Vorbewertung: Top-N Treffer per Match-Engine bewerten (kostengedeckelt, gecached)
