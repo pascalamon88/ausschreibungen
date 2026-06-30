@@ -1,0 +1,21 @@
+name: Bund-Radar-Scan
+
+on:
+  schedule:
+    - cron: '0 5 * * *'      # täglich 05:00 UTC (= 07:00 MESZ)
+  workflow_dispatch: {}        # manuell auslösbar (Actions-Tab → Run workflow)
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Bund-Ausschreibungen scannen & ins Radar schreiben
+        env:
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          DAYS_BACK: '3'
+          PRUNE_DAYS: '45'
+        run: python3 scripts/bund_scan.py
