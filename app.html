@@ -183,6 +183,7 @@ body{font-feature-settings:'cv11','ss01';letter-spacing:-0.006em}
               <span class="text-[10px] leading-none mt-0.5" :class="recText(b._dec?.recommendation)" x-text="b._dec?b._dec.recommendation:'—'"></span>
             </div>
             <div class="flex-1 min-w-0"><div class="text-sm font-medium text-gray-800 truncate" x-text="b.title"></div><div class="text-xs text-gray-400 truncate" x-text="b._dec?(b._dec.reasons[0]||b._dec.next_actions[0]||''):'noch nicht bewertet'"></div></div>
+            <a :href="tenderUrl(b)" @click.stop target="_blank" rel="noopener" class="flex-shrink-0 p-1.5 rounded-lg transition" :class="tenderHasDirectUrl(b)?'text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50':'text-gray-300 hover:text-gray-500 hover:bg-gray-100'" :title="tenderHasDirectUrl(b)?'Zur Ausschreibung':'Auf TED suchen'"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg></a>
           </div>
         </template>
         <template x-if="bids.length===0"><div class="px-5 py-8 text-center text-sm text-gray-400">Keine Bids</div></template>
@@ -1528,6 +1529,7 @@ body{font-feature-settings:'cv11','ss01';letter-spacing:-0.006em}
           <div class="text-[10px] font-semibold" :class="daysUntil(f.datum)<0?'text-red-500':daysUntil(f.datum)<=7?'text-amber-600':'text-gray-400'" x-text="daysUntil(f.datum)<0?(Math.abs(daysUntil(f.datum))+' Tage überfällig'):daysUntil(f.datum)===0?'HEUTE':('in '+daysUntil(f.datum)+' Tagen')"></div></div>
         <span class="text-[10px] px-2 py-0.5 rounded-full font-bold flex-shrink-0" :class="FRIST_TYPEN[f.typ].cls" x-text="FRIST_TYPEN[f.typ].label"></span>
         <span class="flex-1 text-sm text-gray-700 truncate" x-text="f.titel"></span>
+        <a :href="tenderUrl(bids.find(x=>x.id===f.bidId)||{title:f.titel})" @click.stop target="_blank" rel="noopener" class="flex-shrink-0 p-1 rounded transition" :class="tenderHasDirectUrl(bids.find(x=>x.id===f.bidId)||{})?'text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50':'text-gray-300 hover:text-gray-500 hover:bg-gray-100'" :title="tenderHasDirectUrl(bids.find(x=>x.id===f.bidId)||{})?'Zur Ausschreibung':'Auf TED suchen'"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg></a>
         <template x-if="f.bidId"><span class="text-xs text-indigo-500 font-semibold flex-shrink-0">→ öffnen</span></template>
       </div>
     </template>
