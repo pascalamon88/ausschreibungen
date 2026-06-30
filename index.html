@@ -601,7 +601,7 @@ body{font-feature-settings:'cv11','ss01';letter-spacing:-0.006em}
           </div>
           <button @click="runVergabeAnalyse(cur)" :disabled="vergabeLoading" class="flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl bg-indigo-600 text-white font-semibold hover:bg-indigo-700 disabled:opacity-50 flex-shrink-0">
             <svg x-show="vergabeLoading" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-            <span x-text="vergabeLoading?'Analysiert…':(cur._vergabe?'↻ Neu analysieren':'⚖️ Analyse starten')"></span>
+            <span x-text="vergabeLoading?'Analysiert… (~1 Min)':(cur._vergabe?'↻ Neu analysieren':'⚖️ Analyse starten')"></span>
           </button>
         </div>
         <p class="text-[10px] text-gray-400 mt-3">⚠️ KI-gestützte Orientierungshilfe, kein Ersatz für anwaltliche Beratung. Rügeobliegenheit gilt unverzüglich — Fristen selbst prüfen.</p>
@@ -711,7 +711,7 @@ body{font-feature-settings:'cv11','ss01';letter-spacing:-0.006em}
           <div class="flex items-end">
             <button @click="runAbsageAnalyse(cur)" :disabled="absageLoading" class="w-full flex items-center justify-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 disabled:opacity-50">
               <svg x-show="absageLoading" class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
-              <span x-text="absageLoading?'Prüft…':'Absage prüfen'"></span>
+              <span x-text="absageLoading?'Prüft… (~1 Min)':'Absage prüfen'"></span>
             </button>
           </div>
         </div>
