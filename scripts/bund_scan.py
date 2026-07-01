@@ -19,13 +19,29 @@ APP_HTML    = os.path.join(os.path.dirname(__file__), "..", "app.html")
 if not SBK:
     raise SystemExit("❌ SUPABASE_KEY fehlt (GitHub-Secret setzen).")
 
-# ── enthus-CPV-Codes aus app.html (Single Source of Truth) ──
+# ── enthus-CPV-Codes + Ausschluss-Begriffe aus app.html (Single Source of Truth) ──
 def load_enthus_cpv():
     s = open(APP_HTML, encoding="utf-8").read()
     m = re.search(r"const CPV_CATS=\[(.*?)\];", s, re.S)
     codes = set(re.findall(r"'(\d{8})-\d'", m.group(1)))
     classes = set(c[:5] for c in codes)
     return codes, classes
+
+def load_exclude_keywords():
+    s = open(APP_HTML, encoding="utf-8").read()
+    m = re.search(r"const EXCLUDE_DEFAULT=\[(.*?)\];", s, re.S)
+    if not m:
+        return []
+    return re.findall(r"'([^']+)'", m.group(1))
+
+def is_relevant(title, description, exclude_keywords):
+    """Serverseitiges Relevanz-Screening: verwirft Treffer mit Ausschluss-Begriff.
+    Spiegelt tenderRelevance() aus app.html (nur die 'unfit'-Erkennung, konservativ)."""
+    txt = (title + " " + (description or "")).lower()
+    for kw in exclude_keywords:
+        if kw and kw.lower() in txt:
+            return False, kw
+    return True, None
 
 # ── OCDS-Tagespaket laden ──
 def fetch_day(day):
@@ -62,9 +78,11 @@ def sb_request(method, path, body=None, prefer=None):
 
 def main():
     ecodes, eclasses = load_enthus_cpv()
-    print(f"enthus-CPV: {len(ecodes)} Codes / {len(eclasses)} Klassen")
+    exclude_kw = load_exclude_keywords()
+    print(f"enthus-CPV: {len(ecodes)} Codes / {len(eclasses)} Klassen | Ausschluss-Begriffe: {len(exclude_kw)}")
     today = datetime.date.today()
     rows = {}
+    skipped_unfit = 0
     for i in range(1, DAYS_BACK + 1):
         day = (today - datetime.timedelta(days=i)).isoformat()
         raw = fetch_day(day)
@@ -85,6 +103,12 @@ def main():
             exact = [c for c in cpvs if c in ecodes]
             cls = [c for c in cpvs if c[:5] in eclasses]
             if not cls:
+                continue
+            title = t.get("title") or ""
+            description = t.get("description") or ""
+            relevant, hit = is_relevant(title, description, exclude_kw)
+            if not relevant:
+                skipped_unfit += 1
                 continue
             score = 85 if exact else 70
             nid = (r.get("ocid") or n).replace("/", "-")
@@ -111,7 +135,7 @@ def main():
             cnt += 1
         print(f"  {day}: {cnt} enthus-relevante offene Treffer")
     rows = list(rows.values())
-    print(f"Gesamt: {len(rows)} Treffer zum Upsert")
+    print(f"Gesamt: {len(rows)} Treffer zum Upsert | {skipped_unfit} als unpassend vorgefiltert (nicht gespeichert)")
 
     ok = 0
     for i in range(0, len(rows), 50):
