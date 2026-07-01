@@ -34,12 +34,47 @@ def load_exclude_keywords():
         return []
     return re.findall(r"'([^']+)'", m.group(1))
 
+def load_it_positive():
+    s = open(APP_HTML, encoding="utf-8").read()
+    m = re.search(r"const IT_POSITIVE=\[(.*?)\];", s, re.S)
+    if not m:
+        return []
+    return re.findall(r"'([^']+)'", m.group(1))
+
+_WORD_CHAR = re.compile(r"[a-z0-9äöüß]")
+
+def _kw_hit(txt, kw):
+    """Wortgrenzen-Treffer statt reinem Substring-Check — verhindert Fehltreffer wie
+    'itsm' in 'Arbeitsmarkt' oder 'san' in 'Sanierung'. Spiegelt kwHit() aus app.html."""
+    kw = kw.lower().strip()
+    if not kw:
+        return False
+    start = 0
+    while True:
+        i = txt.find(kw, start)
+        if i == -1:
+            return False
+        before = txt[i - 1] if i > 0 else " "
+        after = txt[i + len(kw)] if i + len(kw) < len(txt) else " "
+        if not _WORD_CHAR.match(before) and not _WORD_CHAR.match(after):
+            return True
+        start = i + 1
+
+def keyword_hit(title, description, keywords):
+    """Fallback-Treffer über IT-Begriffe, falls die CPV-Klassifizierung fehlt/falsch ist
+    (in der dt. Vergabepraxis häufig unpräzise gepflegt)."""
+    txt = " " + (title + " " + (description or "")).lower() + " "
+    for kw in keywords:
+        if kw and _kw_hit(txt, kw):
+            return kw
+    return None
+
 def is_relevant(title, description, exclude_keywords):
     """Serverseitiges Relevanz-Screening: verwirft Treffer mit Ausschluss-Begriff.
     Spiegelt tenderRelevance() aus app.html (nur die 'unfit'-Erkennung, konservativ)."""
-    txt = (title + " " + (description or "")).lower()
+    txt = " " + (title + " " + (description or "")).lower() + " "
     for kw in exclude_keywords:
-        if kw and kw.lower() in txt:
+        if kw and _kw_hit(txt, kw):
             return False, kw
     return True, None
 
@@ -79,10 +114,12 @@ def sb_request(method, path, body=None, prefer=None):
 def main():
     ecodes, eclasses = load_enthus_cpv()
     exclude_kw = load_exclude_keywords()
-    print(f"enthus-CPV: {len(ecodes)} Codes / {len(eclasses)} Klassen | Ausschluss-Begriffe: {len(exclude_kw)}")
+    it_kw = load_it_positive()
+    print(f"enthus-CPV: {len(ecodes)} Codes / {len(eclasses)} Klassen | Ausschluss-Begriffe: {len(exclude_kw)} | IT-Begriffe: {len(it_kw)}")
     today = datetime.date.today()
     rows = {}
     skipped_unfit = 0
+    keyword_only_rids = set()
     for i in range(1, DAYS_BACK + 1):
         day = (today - datetime.timedelta(days=i)).isoformat()
         raw = fetch_day(day)
@@ -102,15 +139,20 @@ def main():
             cpvs = cpvs_of(t)
             exact = [c for c in cpvs if c in ecodes]
             cls = [c for c in cpvs if c[:5] in eclasses]
-            if not cls:
-                continue
             title = t.get("title") or ""
             description = t.get("description") or ""
+            kw_hit = None
+            if not cls:
+                # CPV-Klassifizierung fehlt/ist falsch gepflegt (in der Praxis häufig) —
+                # Fallback über IT-Positiv-Begriffe, statt den Treffer ganz zu verwerfen.
+                kw_hit = keyword_hit(title, description, it_kw)
+                if not kw_hit:
+                    continue
             relevant, hit = is_relevant(title, description, exclude_kw)
             if not relevant:
                 skipped_unfit += 1
                 continue
-            score = 85 if exact else 70
+            score = 85 if exact else (70 if cls else 55)
             nid = (r.get("ocid") or n).replace("/", "-")
             buyer = r.get("buyer") or {}
             addr = buyer.get("address") or {}
@@ -119,13 +161,15 @@ def main():
                   or (buyer.get("contactPoint") or {}).get("url") or "https://oeffentlichevergabe.de"
             val = (t.get("value") or {}).get("amount")
             rid = "bund-" + nid[:60]
+            if kw_hit:
+                keyword_only_rids.add(rid)
             rows[rid] = {
                 "id": rid, "title": (t.get("title") or "(ohne Titel)")[:300],
                 "contracting_authority": (buyer.get("name") or "")[:200],
                 "region": addr.get("region") or "DEU",
                 "submission_deadline": None,
                 "estimated_value": int(val) if val else None,
-                "cpv_codes": list(dict.fromkeys(cls + exact))[:10],
+                "cpv_codes": (list(dict.fromkeys(cls + exact)) or cpvs)[:10],
                 "source": "bund", "source_url": url[:500],
                 "description": (t.get("description") or "")[:600],
                 "full_text": ((t.get("title") or "") + " " + (t.get("description") or ""))[:1500],
@@ -135,7 +179,7 @@ def main():
             cnt += 1
         print(f"  {day}: {cnt} enthus-relevante offene Treffer")
     rows = list(rows.values())
-    print(f"Gesamt: {len(rows)} Treffer zum Upsert | {skipped_unfit} als unpassend vorgefiltert (nicht gespeichert)")
+    print(f"Gesamt: {len(rows)} Treffer zum Upsert ({len(keyword_only_rids)} davon nur über IT-Begriff, ohne CPV-Match) | {skipped_unfit} als unpassend vorgefiltert (nicht gespeichert)")
 
     ok = 0
     for i in range(0, len(rows), 50):

@@ -1950,7 +1950,7 @@ function BidOS(){
   const CPV_CATS=[
     {key:'datacenter_server_storage',label:'Rechenzentrum & Storage',codes:['30230000-0','30233000-1','30233100-2','30233132-5','48800000-6','48810000-9','48820000-2']},
     {key:'network_connectivity',label:'Netzwerk & Konnektivität',codes:['32410000-0','32420000-0','32424000-1','72700000-7','72720000-3']},
-    {key:'modern_workplace_clients',label:'Modern Workplace',codes:['30213000-5','30213100-6','30231300-0','30232110-8','33195100-4']},
+    {key:'modern_workplace_clients',label:'Modern Workplace',codes:['30213000-5','30213100-6','30231300-0','30232110-8']},
     {key:'security_isms_defenderbox',label:'Security & ISMS',codes:['48730000-4','72222000-7','72300000-8','72316000-3']},
     {key:'backup_bcm_dpis',label:'Backup & BCM',codes:['48600000-4','48611000-6','72221000-0','72317000-0','72900000-9']},
     {key:'itsm_asset_documentation',label:'ITSM & Asset Management',codes:['48218000-9','48311000-1','48613000-8','72251000-9','72261000-2']},
@@ -1961,7 +1961,19 @@ function BidOS(){
   // Relevanz-Screening: Begriffe, die klar NICHT zum enthus-Portfolio gehören (Default, im Profil editierbar)
   const EXCLUDE_DEFAULT=['arbeitnehmerüberlassung','personalgestellung','personaldienstleist','zeitarbeit','pflege','pfleger','pflegekraft','pflegedienst','heilberuf','heilberufsausweis','arztausweis','baustoff','bauüberwachung','bauleitung','tiefbau','hochbau','straßenbau','abbruch','dachdecker','kontrollprüf','baugrundunters','laboruntersuch','probenahme','reinigung','catering','verpflegung','bewachung','sicherheitsdienst','wachdienst','winterdienst','grünpflege','gartenbau','entsorgung','abfall','möblier','dienstkleidung','dolmetsch','übersetzungsleist','umzug','beschilderung'];
   // Positive IT-Signale (enthus-typisch) für die Relevanz-Einstufung
-  const IT_POSITIVE=['server','storage','speicher','netzwerk','firewall','rechenzentrum','datacenter','cloud','backup','virtualisier','vmware','hyper-v','microsoft','windows','linux','client','notebook','laptop','workplace','arbeitsplatzrechner','software','lizenz','licen','sap','datenbank','it-dienst','it-service','it-betrieb','managed service','itsm','it-sicherheit','informationssicherheit','isms','siem','endpoint','m365','office 365','wlan','switch','router',' san ',' nas ','hardware','edv','digitalisierung','schnittstelle','it-infrastruktur','serverlandschaft','speichersystem','telekommunikation','glasfaser'];
+  const IT_POSITIVE=['server','storage','speicher','netzwerk','firewall','rechenzentrum','datacenter','cloud','backup','virtualisier','vmware','hyper-v','microsoft','windows','linux','client','notebook','laptop','workplace','arbeitsplatzrechner','software','lizenz','licen','sap','datenbank','it-dienst','it-service','it-betrieb','managed service','itsm','it-sicherheit','informationssicherheit','isms','siem','endpoint','m365','office 365','wlan','switch','router','san','nas','hardware','edv','digitalisierung','schnittstelle','it-infrastruktur','serverlandschaft','speichersystem','telekommunikation','glasfaser'];
+  // Wortgrenzen-Treffer statt reinem Substring-Check — verhindert Fehltreffer wie 'itsm' in "Arbeitsmarkt" oder 'san' in "Sanierung"
+  const _isWordChar=c=>/[a-z0-9äöüß]/.test(c);
+  function kwHit(txt,kw){
+    kw=String(kw).toLowerCase().trim();if(!kw)return false;
+    let i=0;
+    while((i=txt.indexOf(kw,i))!==-1){
+      const before=i>0?txt[i-1]:' ';const after=i+kw.length<txt.length?txt[i+kw.length]:' ';
+      if(!_isWordChar(before)&&!_isWordChar(after))return true;
+      i+=1;
+    }
+    return false;
+  }
   return {
     STAGES, CPV_CATS, view:'dashboard', tab:'overview', online:false, loading:false, toast:'', toastErr:false,
     n8n: localStorage.getItem('bidos_n8n')||'https://stage.automate.enthus.de',
@@ -2097,7 +2109,7 @@ function BidOS(){
     async loadClients(){const r=await this.req('GET','/clients');if(r.success)this.clients=r.clients||[];},
     async loadRadar(){const r=await this.req('GET','/radar');if(r&&r.success){const cache=JSON.parse(localStorage.getItem('bidos_radar_ai')||'{}');this.radar=(r.tenders||r.radar||[]).map(t=>cache[t.id]?{...t,ai:cache[t.id]}:t);}},
     async loadProfile(){const r=await this.req('GET','/profile');if(r&&r.success&&r.profile)this.profile={services:[],keywords:[],regions:[],cpv_categories:CPV_CATS.map(c=>c.key),exclude_keywords:[...EXCLUDE_DEFAULT],...r.profile};if(!this.profile.exclude_keywords||!this.profile.exclude_keywords.length)this.profile.exclude_keywords=[...EXCLUDE_DEFAULT];},
-    tenderRelevance(t){const txt=((t.title||'')+' '+(t.description||t.full_text||'')+' '+((t.cpv_codes||[]).join(' '))).toLowerCase();const excl=(this.profile.exclude_keywords&&this.profile.exclude_keywords.length)?this.profile.exclude_keywords:EXCLUDE_DEFAULT;const neg=excl.find(k=>k&&txt.includes(String(k).toLowerCase()));if(neg)return{v:'unfit',reason:'enthält „'+neg+'"'};const pos=[...IT_POSITIVE,...(this.profile.keywords||[]),...(this.profile.services||[])].find(k=>k&&String(k).length>2&&txt.includes(String(k).toLowerCase()));if(pos)return{v:'fit',reason:'IT-Bezug: „'+String(pos).trim()+'"'};return{v:'maybe',reason:'kein klares IT-Signal'};},
+    tenderRelevance(t){const txt=' '+((t.title||'')+' '+(t.description||t.full_text||'')+' '+((t.cpv_codes||[]).join(' '))).toLowerCase()+' ';const excl=(this.profile.exclude_keywords&&this.profile.exclude_keywords.length)?this.profile.exclude_keywords:EXCLUDE_DEFAULT;const neg=excl.find(k=>k&&kwHit(txt,k));if(neg)return{v:'unfit',reason:'enthält „'+neg+'"'};const pos=[...IT_POSITIVE,...(this.profile.keywords||[]),...(this.profile.services||[])].find(k=>k&&String(k).length>2&&kwHit(txt,k));if(pos)return{v:'fit',reason:'IT-Bezug: „'+String(pos).trim()+'"'};return{v:'maybe',reason:'kein klares IT-Signal'};},
     relevanceBadge(t){const v=this.tenderRelevance(t).v;return{fit:{label:'✓ Passt',cls:'bg-emerald-100 text-emerald-700'},maybe:{label:'? Prüfen',cls:'bg-amber-100 text-amber-700'},unfit:{label:'✕ Passt nicht',cls:'bg-red-100 text-red-600'}}[v];},
     async loadDocs(){const r=await this.req('GET','/doc-pool');if(r&&r.success)this.docpool=r.docs||[];},
     get docpoolSorted(){
@@ -2607,7 +2619,7 @@ function BidOS(){
     async scanRadar(){this.scanning=true;
       const activeCats=CPV_CATS.filter(c=>(this.profile.cpv_categories||[]).includes(c.key));
       const cpv_codes=activeCats.flatMap(c=>this.catCodes(c)).map(c=>c.split('-')[0]);
-      const r=await this.req('POST','/radar-scan',{keywords:this.profile.keywords||[],services:this.profile.services||[],cpv_codes,days:45,limit:40});
+      const r=await this.req('POST','/radar-scan',{keywords:this.profile.keywords||[],services:this.profile.services||[],cpv_codes,days:45,limit:250});
       if(r&&r.fetched!=null){await this.loadRadar();this.notify(r.added+' neue Treffer von TED');this.scanning=false;this.aiScoreRadar();}else{this.notify('Scan fehlgeschlagen',true);this.scanning=false;}},
     // (c) KI-Vorbewertung: Top-N Treffer per Match-Engine bewerten (kostengedeckelt, gecached)
     async aiScoreRadar(){
